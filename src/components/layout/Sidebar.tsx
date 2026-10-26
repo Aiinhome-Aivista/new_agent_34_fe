@@ -7,6 +7,7 @@ import {
   Database,
   PlayCircle,
   Sliders,
+  FileSpreadsheet,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -28,18 +29,19 @@ const getNavItems = (role?: string) => {
   const items = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, description: 'Analytics & case metrics' },
     { id: 'queue', label: 'Case Queue', icon: Layers, description: 'Active investigation cases' },
+    { id: 'batch-ingest', label: 'Batch Ingestion', icon: FileSpreadsheet, description: 'Excel/CSV auto-trigger' },
     { id: 'actions', label: 'Action History', icon: Activity, description: 'Audit trail & past decisions' },
     { id: 'integrations', label: 'Infrastructure', icon: Database, description: 'System health & integrations' },
     { id: 'simulator', label: 'Simulator', icon: PlayCircle, description: 'Concurrency stress testing' },
   ];
 
-  // Admin persona gets dedicated Policies & Parameters management
+  // Admin persona gets dedicated Policies & Parameters & Knowledge management
   if (role === 'ADMIN') {
     items.push({
       id: 'admin',
       label: 'Policies & Params',
       icon: Sliders,
-      description: 'SOP policies & fraud thresholds',
+      description: 'SOP policies, parameters & knowledge base',
       badge: 'ADMIN',
     });
   }

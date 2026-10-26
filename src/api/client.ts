@@ -324,5 +324,93 @@ export const apiClient = {
     const res = await fetch(`${API_BASE}/admin/sections`);
     if (!res.ok) throw new Error('Failed to fetch sections summary');
     return res.json();
+  },
+
+  // -------------------------------------------------------------
+  // Batch Excel/CSV Ingestion & Auto-Trigger
+  // -------------------------------------------------------------
+  async uploadBatchFile(formData: FormData): Promise<{
+    status: string;
+    message: string;
+    total_rows: number;
+    ingested: number;
+    triggered_cases: any[];
+  }> {
+    const res = await fetch(`${API_BASE}/ingest/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to ingest batch file');
+    }
+    return res.json();
+  },
+
+  async getIngestStatus(): Promise<{
+    auto_trigger_enabled: boolean;
+    poll_interval_seconds: number;
+    watch_directory: string;
+    is_running: boolean;
+    last_polled_at: string | null;
+    total_auto_ingested: number;
+  }> {
+    const res = await fetch(`${API_BASE}/ingest/status`);
+    if (!res.ok) throw new Error('Failed to fetch ingest poller status');
+    return res.json();
+  },
+
+  getSampleTemplateUrl(): string {
+    return `${API_BASE}/ingest/template`;
+  },
+
+  // -------------------------------------------------------------
+  // Knowledge Base & Private Document RAG
+  // -------------------------------------------------------------
+  async uploadKnowledgeDocument(formData: FormData): Promise<{
+    status: string;
+    document_key: string;
+    title: string;
+    category: string;
+    total_characters: number;
+    chunks_indexed: number;
+    filename: string;
+    message: string;
+  }> {
+    const res = await fetch(`${API_BASE}/admin/knowledge/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to upload and index document');
+    }
+    return res.json();
+  },
+
+  async reindexKnowledge(): Promise<{
+    status: string;
+    policies_reindexed: number;
+    total_chunks: number;
+    message: string;
+  }> {
+    const res = await fetch(`${API_BASE}/admin/knowledge/reindex`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to re-index knowledge base');
+    }
+    return res.json();
+  },
+
+  async getKnowledgeStatus(): Promise<{
+    status: string;
+    collection_name?: string;
+    indexed_vectors_count: number;
+  }> {
+    const res = await fetch(`${API_BASE}/admin/knowledge/status`);
+    if (!res.ok) throw new Error('Failed to fetch knowledge base status');
+    return res.json();
   }
 };

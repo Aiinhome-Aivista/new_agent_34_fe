@@ -10,6 +10,7 @@ import { ActionHistoryView } from './views/ActionHistoryView';
 import { IntegrationsView } from './views/IntegrationsView';
 import { SimulatorView } from './views/SimulatorView';
 import { AdminManagementView } from './views/AdminManagementView';
+import { BatchIngestView } from './views/BatchIngestView';
 import './styles/globals.css';
 
 type Page = 'landing' | 'login' | 'app';
@@ -213,6 +214,12 @@ export function App() {
             {currentTab === 'simulator' && (
               <SimulatorView onNavigateToQueue={() => setCurrentTab('queue')} />
             )}
+            {currentTab === 'batch-ingest' && (
+              <BatchIngestView
+                onNavigateToCase={handleSelectCase}
+                onNavigateToQueue={() => setCurrentTab('queue')}
+              />
+            )}
             {currentTab === 'admin' && <AdminManagementView />}
           </main>
 
@@ -256,6 +263,7 @@ function getPageTitle(tab: string): string {
     dashboard: 'Analytics Dashboard',
     queue: 'Case Queue',
     casedetail: 'Case Detail',
+    'batch-ingest': 'Batch Excel/CSV Ingestion & Live Auto-Trigger',
     actions: 'Action History',
     integrations: 'Infrastructure & Integrations',
     simulator: 'Concurrency Simulator',
@@ -269,10 +277,11 @@ function getPageSubtitle(tab: string, caseId: string | null): string {
   const subs: Record<string, string> = {
     dashboard: 'Live investigation metrics & KPIs',
     queue: 'Review and triage active fraud cases',
+    'batch-ingest': 'Upload transaction files, monitor batch ingestion, and verify autonomous trigger execution',
     actions: 'Full audit trail of analyst decisions',
     integrations: 'System health & backend services',
     simulator: 'Stress-test ingestion pipeline',
-    admin: 'Manage organizational SOPs and detection parameter thresholds',
+    admin: 'Manage organizational SOPs, detection parameters, and private knowledge base',
   };
   return subs[tab] || '';
 }

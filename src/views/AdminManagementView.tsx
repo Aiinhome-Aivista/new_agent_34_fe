@@ -18,6 +18,11 @@ import {
   Globe,
   Database,
   ArrowRight,
+  UploadCloud,
+  BookOpen,
+  FileCheck,
+  Check,
+  Sparkles,
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
@@ -26,7 +31,7 @@ import { apiClient } from '../api/client';
 import type { CompanyPolicy, FraudParameter, SectionSummary } from '../api/client';
 
 export const AdminManagementView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'policies' | 'parameters'>('policies');
+  const [activeTab, setActiveTab] = useState<'policies' | 'parameters' | 'knowledge'>('policies');
 
   // Policies State
   const [policies, setPolicies] = useState<CompanyPolicy[]>([]);
@@ -40,6 +45,26 @@ export const AdminManagementView: React.FC = () => {
   const [paramSearch, setParamSearch] = useState('');
   const [sectionsSummary, setSectionsSummary] = useState<SectionSummary[]>([]);
   const [loadingParameters, setLoadingParameters] = useState(false);
+
+  // Knowledge Base (RAG) State
+  const [knowledgeStatus, setKnowledgeStatus] = useState<{
+    status: string;
+    collection_name?: string;
+    indexed_vectors_count: number;
+  } | null>(null);
+  const [loadingKnowledge, setLoadingKnowledge] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docUploadResult, setDocUploadResult] = useState<any | null>(null);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docForm, setDocForm] = useState({
+    document_key: '',
+    title: '',
+    category: 'GENERAL',
+    action_impact: 'ADVISORY',
+    version: '1.0',
+    description: '',
+  });
 
   // Global Messages
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -105,6 +130,84 @@ export const AdminManagementView: React.FC = () => {
     }
   };
 
+  // Load Knowledge Base Status
+  const loadKnowledgeStatus = async () => {
+    setLoadingKnowledge(true);
+    try {
+      const data = await apiClient.getKnowledgeStatus();
+      setKnowledgeStatus(data);
+    } catch (err: any) {
+      console.warn('Could not load knowledge status:', err);
+    } finally {
+      setLoadingKnowledge(false);
+    }
+  };
+
+  const handleReindexKnowledge = async () => {
+    setReindexing(true);
+    try {
+      const res = await apiClient.reindexKnowledge();
+      setFeedback({
+        type: 'success',
+        message: `Successfully re-indexed ${res.policies_reindexed} SOP policies (${res.total_chunks} chunks) into ChromaDB vector knowledge store!`
+      });
+      loadKnowledgeStatus();
+      loadPolicies();
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Failed to re-index knowledge base' });
+    } finally {
+      setReindexing(false);
+    }
+  };
+
+  const handleDocUploadSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docFile) {
+      alert('Please select a document file (.pdf, .txt, .md, .json).');
+      return;
+    }
+    if (!docForm.document_key.trim() || !docForm.title.trim()) {
+      alert('Document Key and Title are required.');
+      return;
+    }
+
+    setUploadingDoc(true);
+    setDocUploadResult(null);
+
+    const formData = new FormData();
+    formData.append('file', docFile);
+    formData.append('document_key', docForm.document_key.trim().toUpperCase());
+    formData.append('title', docForm.title.trim());
+    formData.append('category', docForm.category);
+    formData.append('action_impact', docForm.action_impact);
+    formData.append('version', docForm.version.trim() || '1.0');
+    formData.append('description', docForm.description.trim());
+
+    try {
+      const res = await apiClient.uploadKnowledgeDocument(formData);
+      setDocUploadResult(res);
+      setFeedback({
+        type: 'success',
+        message: `Uploaded and indexed "${res.title}" (${res.chunks_indexed} vector chunks) into ChromaDB!`,
+      });
+      setDocFile(null);
+      setDocForm({
+        document_key: '',
+        title: '',
+        category: 'GENERAL',
+        action_impact: 'ADVISORY',
+        version: '1.0',
+        description: '',
+      });
+      loadKnowledgeStatus();
+      loadPolicies();
+    } catch (err: any) {
+      alert(err.message || 'Document upload & indexing failed');
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
   useEffect(() => {
     loadPolicies();
   }, [policyCategoryFilter]);
@@ -112,6 +215,10 @@ export const AdminManagementView: React.FC = () => {
   useEffect(() => {
     loadParameters();
   }, [paramSectionFilter]);
+
+  useEffect(() => {
+    loadKnowledgeStatus();
+  }, []);
 
   // Policy Form Handlers
   const openNewPolicyModal = () => {
@@ -353,9 +460,19 @@ export const AdminManagementView: React.FC = () => {
             <Button variant="primary" size="sm" onClick={openNewPolicyModal} icon={<Plus size={15} />}>
               Create New Policy
             </Button>
-          ) : (
+          ) : activeTab === 'parameters' ? (
             <Button variant="primary" size="sm" onClick={openNewParamModal} icon={<Plus size={15} />}>
               Add Parameter Threshold
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleReindexKnowledge}
+              disabled={reindexing}
+              icon={<RefreshCw size={14} className={reindexing ? 'animate-spin' : ''} />}
+            >
+              {reindexing ? 'Re-Indexing Vectors...' : 'Re-Index Vector Store'}
             </Button>
           )}
           <Button
@@ -363,7 +480,8 @@ export const AdminManagementView: React.FC = () => {
             size="sm"
             onClick={() => {
               if (activeTab === 'policies') loadPolicies();
-              else loadParameters();
+              else if (activeTab === 'parameters') loadParameters();
+              else loadKnowledgeStatus();
             }}
             icon={<RefreshCw size={14} />}
           >
@@ -497,11 +615,13 @@ export const AdminManagementView: React.FC = () => {
               justifyContent: 'center',
             }}
           >
-            <Database size={20} />
+            <BookOpen size={20} />
           </div>
           <div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>MySQL 8.0</div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Live Persisted State</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>
+              {knowledgeStatus ? `${knowledgeStatus.indexed_vectors_count} Chunks` : 'ChromaDB'}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Vector Store (RAG)</div>
           </div>
         </div>
       </div>
@@ -581,6 +701,27 @@ export const AdminManagementView: React.FC = () => {
         >
           <Sliders size={17} color={activeTab === 'parameters' ? 'var(--color-primary)' : 'inherit'} />
           Fraud Detection Parameters by Section ({parameters.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('knowledge')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 20px',
+            border: 'none',
+            borderBottom: activeTab === 'knowledge' ? '2px solid var(--color-primary)' : '2px solid transparent',
+            backgroundColor: 'transparent',
+            color: activeTab === 'knowledge' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+            fontWeight: activeTab === 'knowledge' ? 700 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            transition: 'all var(--transition-fast)',
+          }}
+        >
+          <BookOpen size={17} color={activeTab === 'knowledge' ? 'var(--color-primary)' : 'inherit'} />
+          Private Knowledge Base (RAG)
         </button>
       </div>
 
@@ -1097,6 +1238,433 @@ export const AdminManagementView: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* TAB 3: PRIVATE KNOWLEDGE BASE (DOCUMENT UPLOAD & VECTOR RAG) */}
+      {activeTab === 'knowledge' && (
+        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Vector Store Engine Status Card */}
+          <Card>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div
+                  style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                    color: '#8B5CF6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <BookOpen size={24} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>
+                      ChromaDB Vector Knowledge Store
+                    </h2>
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-full)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                        color: '#10B981',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                      }}
+                    >
+                      LIVE RAG ACTIVE
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.84rem', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
+                    Embeddings collection: <code>company_policies</code> &bull; Autonomous agent performs cosine-similarity search against these private corporate SOPs during investigation.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    textAlign: 'right',
+                    padding: '8px 16px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--color-input-background)',
+                    border: '1px solid var(--color-border)',
+                  }}
+                >
+                  <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                    {knowledgeStatus ? knowledgeStatus.indexed_vectors_count : '...'}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                    Vector Embeddings Indexed
+                  </div>
+                </div>
+
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleReindexKnowledge}
+                  disabled={reindexing}
+                  icon={<RefreshCw size={14} className={reindexing ? 'animate-spin' : ''} />}
+                >
+                  {reindexing ? 'Re-Indexing Vectors...' : 'Re-Index All SOPs'}
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Document Upload & Ingestion Section */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(255, 90, 20, 0.12)',
+                    color: 'var(--color-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <UploadCloud size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>
+                    Upload Private Company Policy Document
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', margin: 0 }}>
+                    Upload internal PDF manuals, SOP text guidelines, or policy markdown files. Content is extracted and vectorized into ChromaDB.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleDocUploadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Drag and Drop / File Input Box */}
+                <div
+                  style={{
+                    border: '2px dashed var(--color-border)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '24px',
+                    textAlign: 'center',
+                    backgroundColor: 'var(--color-input-background)',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                  onClick={() => document.getElementById('knowledge-doc-file-input')?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.style.borderColor = 'var(--color-primary)';
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.style.borderColor = 'var(--color-border)';
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      setDocFile(e.dataTransfer.files[0]);
+                      if (!docForm.title) {
+                        const fname = e.dataTransfer.files[0].name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+                        setDocForm((prev) => ({ ...prev, title: fname }));
+                      }
+                      if (!docForm.document_key) {
+                        setDocForm((prev) => ({ ...prev, document_key: `SOP_DOC_${Date.now().toString().slice(-4)}` }));
+                      }
+                    }
+                  }}
+                >
+                  <input
+                    id="knowledge-doc-file-input"
+                    type="file"
+                    accept=".pdf,.txt,.md,.json"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setDocFile(e.target.files[0]);
+                        if (!docForm.title) {
+                          const fname = e.target.files[0].name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+                          setDocForm((prev) => ({ ...prev, title: fname }));
+                        }
+                        if (!docForm.document_key) {
+                          setDocForm((prev) => ({ ...prev, document_key: `SOP_DOC_${Date.now().toString().slice(-4)}` }));
+                        }
+                      }
+                    }}
+                  />
+                  <UploadCloud size={36} color="var(--color-primary)" style={{ margin: '0 auto 8px' }} />
+                  {docFile ? (
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>
+                        {docFile.name}
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                        {(docFile.size / 1024).toFixed(1)} KB &bull; Click to change document
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--color-text-primary)' }}>
+                        Click to browse or drag and drop company policy document
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                        Supports <strong>.pdf</strong>, <strong>.txt</strong>, <strong>.md</strong>, <strong>.json</strong> (Up to 10MB)
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Form fields */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Document Key / Identifier *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. SOP_CORP_POLICY_01"
+                      value={docForm.document_key}
+                      onChange={(e) => setDocForm({ ...docForm, document_key: e.target.value.toUpperCase().replace(/\s+/g, '_') })}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Policy Document Title *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. High-Risk Merchant Dispute SOP"
+                      value={docForm.title}
+                      onChange={(e) => setDocForm({ ...docForm, title: e.target.value })}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Category
+                    </label>
+                    <select
+                      value={docForm.category}
+                      onChange={(e) => setDocForm({ ...docForm, category: e.target.value })}
+                      style={{ width: '100%' }}
+                    >
+                      <option value="GENERAL">GENERAL</option>
+                      <option value="CHARGEBACK">CHARGEBACK</option>
+                      <option value="AUTO_ACTION">AUTO_ACTION</option>
+                      <option value="DEVICE_RING">DEVICE_RING</option>
+                      <option value="HUMAN_REVIEW">HUMAN_REVIEW</option>
+                      <option value="IDENTITY">IDENTITY</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Action Impact
+                    </label>
+                    <select
+                      value={docForm.action_impact}
+                      onChange={(e) => setDocForm({ ...docForm, action_impact: e.target.value })}
+                      style={{ width: '100%' }}
+                    >
+                      <option value="ADVISORY">ADVISORY (Agent Advisory)</option>
+                      <option value="BLOCKING">BLOCKING (Auto-Freeze Mandate)</option>
+                      <option value="FLAG">FLAG (Analyst Review Flag)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                    Document Summary / Forensic Scope
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Brief description of when this policy should apply and what rules it establishes..."
+                    value={docForm.description}
+                    onChange={(e) => setDocForm({ ...docForm, description: e.target.value })}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <Button
+                    variant="primary"
+                    type="submit"
+                    disabled={uploadingDoc || !docFile}
+                    icon={uploadingDoc ? <RefreshCw size={14} className="animate-spin" /> : <FileCheck size={15} />}
+                  >
+                    {uploadingDoc ? 'Extracting & Indexing Vectors...' : 'Upload & Vectorize Document'}
+                  </Button>
+                </div>
+              </form>
+
+              {/* Upload Success Banner */}
+              {docUploadResult && (
+                <div
+                  style={{
+                    marginTop: '20px',
+                    padding: '16px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    color: '#10B981',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <CheckCircle size={20} />
+                    <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>
+                      Document Successfully Vectorized &amp; Indexed
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+                    <div><strong>Document Key:</strong> {docUploadResult.document_key} ({docUploadResult.title})</div>
+                    <div><strong>File:</strong> {docUploadResult.filename} ({docUploadResult.total_characters} characters extracted)</div>
+                    <div><strong>ChromaDB Vectors:</strong> {docUploadResult.chunks_indexed} semantic chunks embedded with <code>text-embedding-004</code></div>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Current Policies & Documents in Knowledge Base */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>
+                  Active Knowledge Documents &amp; Company Policies ({policies.length})
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)', margin: '2px 0 0 0' }}>
+                  All policies currently active in MySQL and available for agent RAG similarity retrieval.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px' }}>
+              {policies.map((p) => (
+                <div
+                  key={p.id}
+                  style={{
+                    backgroundColor: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '18px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontFamily: 'var(--font-family-mono)', fontWeight: 700, color: 'var(--color-primary)', fontSize: '0.88rem' }}>
+                        {p.document_key}
+                      </span>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: 'var(--radius-full)',
+                            backgroundColor: 'rgba(139, 92, 246, 0.12)',
+                            color: '#8B5CF6',
+                            border: '1px solid rgba(139, 92, 246, 0.3)',
+                          }}
+                        >
+                          ChromaDB Vectorized
+                        </span>
+                      </div>
+                    </div>
+
+                    <h4 style={{ fontSize: '0.98rem', fontWeight: 700, marginBottom: '6px' }}>
+                      {p.title}
+                    </h4>
+
+                    <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: 'var(--color-input-background)',
+                          color: 'var(--color-text-secondary)',
+                          border: '1px solid var(--color-border)',
+                        }}
+                      >
+                        {p.category}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: 'var(--color-input-background)',
+                          color: p.action_impact === 'BLOCKING' ? '#EF4444' : 'var(--color-text-secondary)',
+                          border: '1px solid var(--color-border)',
+                        }}
+                      >
+                        {p.action_impact}
+                      </span>
+                    </div>
+
+                    <p style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)', lineHeight: 1.4, margin: 0 }}>
+                      {p.description || 'Corporate operational guideline.'}
+                    </p>
+
+                    {p.content && (
+                      <div
+                        style={{
+                          marginTop: '10px',
+                          padding: '8px 10px',
+                          borderRadius: 'var(--radius-sm)',
+                          backgroundColor: 'var(--color-input-background)',
+                          fontSize: '0.78rem',
+                          fontStyle: 'italic',
+                          color: 'var(--color-text-primary)',
+                          border: '1px solid var(--color-border)',
+                          maxHeight: '80px',
+                          overflowY: 'auto',
+                        }}
+                      >
+                        "{p.content.slice(0, 200)}..."
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '10px', borderTop: '1px solid var(--color-border)' }}>
+                    <Button variant="secondary" size="sm" onClick={() => openEditPolicyModal(p)} icon={<Edit2 size={12} />}>
+                      Edit
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => handleDeletePolicy(p)} icon={<Trash2 size={12} />}>
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
