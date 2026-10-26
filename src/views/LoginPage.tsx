@@ -1,45 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Eye, EyeOff, Zap, ArrowRight, User, Lock, CheckCircle, ArrowLeft } from 'lucide-react';
+import { apiClient } from '../api/client';
+import type { PersonaUser } from '../api/client';
 
 interface LoginPageProps {
-  onLogin: (user: { name: string; role: string; email: string }) => void;
+  onLogin: (user: { name: string; role: string; email: string; id?: string }) => void;
   onBack?: () => void;
 }
 
-const DEMO_PERSONAS = [
+const FALLBACK_PERSONAS: PersonaUser[] = [
   {
-    name: 'Priya Sharma',
-    role: 'Senior Fraud Analyst',
+    id: 'demo-admin',
+    identity_subject: 'SUB_ADMIN_01',
+    display_name: 'Vikramaditya Roy',
+    role: 'ADMIN',
+    email: 'admin@fraudops.ai',
+    demo_password: 'admin@123',
+    avatar: 'VR',
+    badge: 'ADMIN',
+    badge_color: '#EF4444',
+    description: 'Full system authority: policy manager, parameter engine, and user administration',
+  },
+  {
+    id: 'demo-senior',
+    identity_subject: 'SUB_ANALYST_01',
+    display_name: 'Priya Sharma',
+    role: 'SENIOR_INVESTIGATOR',
     email: 'priya.sharma@fraudops.ai',
-    password: 'analyst123',
+    demo_password: 'analyst123',
     avatar: 'PS',
     badge: 'SENIOR',
-    badgeColor: '#16A34A',
+    badge_color: '#16A34A',
     description: 'Full access to case queue, decisions, and simulator',
   },
   {
-    name: 'Rahul Verma',
-    role: 'Risk Intelligence Lead',
+    id: 'demo-lead',
+    identity_subject: 'SUB_LEAD_01',
+    display_name: 'Rahul Verma',
+    role: 'SUPERVISOR',
     email: 'rahul.verma@fraudops.ai',
-    password: 'riskops99',
+    demo_password: 'riskops99',
     avatar: 'RV',
     badge: 'LEAD',
-    badgeColor: '#FF5A14',
+    badge_color: '#FF5A14',
     description: 'Dashboard analytics and infrastructure oversight',
   },
   {
-    name: 'Ananya Bose',
-    role: 'Compliance Auditor',
+    id: 'demo-audit',
+    identity_subject: 'SUB_AUDIT_01',
+    display_name: 'Ananya Bose',
+    role: 'AUDITOR',
     email: 'ananya.bose@fraudops.ai',
-    password: 'audit2024',
+    demo_password: 'audit2024',
     avatar: 'AB',
     badge: 'AUDIT',
-    badgeColor: '#6D28D9',
+    badge_color: '#6D28D9',
     description: 'Read-only access with full audit trail visibility',
   },
 ];
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
+  const [personas, setPersonas] = useState<PersonaUser[]>(FALLBACK_PERSONAS);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -47,10 +68,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
   const [error, setError] = useState('');
   const [selectedPersona, setSelectedPersona] = useState<number | null>(null);
 
+  useEffect(() => {
+    apiClient.getPersonas()
+      .then((data) => {
+        if (data && data.length > 0) {
+          setPersonas(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('Using fallback personas due to API note:', err);
+      });
+  }, []);
+
   const handlePersonaSelect = (idx: number) => {
-    const p = DEMO_PERSONAS[idx];
+    const p = personas[idx];
+    if (!p) return;
     setEmail(p.email);
-    setPassword(p.password);
+    setPassword(p.demo_password || 'admin@123');
     setSelectedPersona(idx);
     setError('');
   };
@@ -60,18 +94,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
     setError('');
     setLoading(true);
 
-    await new Promise((r) => setTimeout(r, 900));
-
-    const matched = DEMO_PERSONAS.find(
-      (p) => p.email === email && p.password === password
-    );
-
-    if (matched) {
-      onLogin({ name: matched.name, role: matched.role, email: matched.email });
-    } else {
-      setError('Invalid credentials. Use a demo persona below or enter valid details.');
+    try {
+      const res = await apiClient.login({ email, password });
+      onLogin({
+        name: res.user.display_name,
+        role: res.user.role,
+        email: res.user.email,
+        id: res.user.id,
+      });
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed. Please verify your credentials.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -332,12 +367,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
             }}
           >
             <Zap size={12} color="var(--color-primary)" />
-            Quick Access — Demo Personas
+            Quick Access — System Personas ({personas.length})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {DEMO_PERSONAS.map((p, idx) => (
+            {personas.map((p, idx) => (
               <button
-                key={idx}
+                key={p.id || idx}
                 onClick={() => handlePersonaSelect(idx)}
                 style={{
                   display: 'flex',
@@ -373,7 +408,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                     width: '40px',
                     height: '40px',
                     borderRadius: '10px',
-                    backgroundColor: 'var(--color-primary)',
+                    backgroundColor: p.badge_color || 'var(--color-primary)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -383,7 +418,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                     flexShrink: 0,
                   }}
                 >
-                  {p.avatar}
+                  {p.avatar || p.display_name.slice(0, 2).toUpperCase()}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
@@ -401,7 +436,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                         color: 'var(--color-text-primary)',
                       }}
                     >
-                      {p.name}
+                      {p.display_name}
                     </span>
                     <span
                       style={{
@@ -409,12 +444,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                         fontWeight: 700,
                         padding: '1px 6px',
                         borderRadius: 'var(--radius-full)',
-                        backgroundColor: `${p.badgeColor}20`,
-                        color: p.badgeColor,
-                        border: `1px solid ${p.badgeColor}40`,
+                        backgroundColor: `${p.badge_color || '#FF5A14'}20`,
+                        color: p.badge_color || '#FF5A14',
+                        border: `1px solid ${p.badge_color || '#FF5A14'}40`,
                       }}
                     >
-                      {p.badge}
+                      {p.badge || p.role}
                     </span>
                   </div>
                   <div

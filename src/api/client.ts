@@ -45,6 +45,55 @@ export interface IntegrationItem {
   description: string;
 }
 
+export interface PersonaUser {
+  id: string;
+  identity_subject: string;
+  display_name: string;
+  email: string;
+  role: string;
+  avatar: string;
+  badge: string;
+  badge_color: string;
+  description: string;
+  demo_password?: string;
+}
+
+export interface CompanyPolicy {
+  id: string;
+  document_key: string;
+  title: string;
+  version: string;
+  category: string;
+  action_impact: string;
+  description: string;
+  content: string;
+  status: string;
+  source_reference?: string;
+  effective_from?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FraudParameter {
+  id: string;
+  parameter_key: string;
+  name: string;
+  section: string;
+  data_type: string;
+  threshold_value: string;
+  risk_weight: string;
+  description: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SectionSummary {
+  section: string;
+  total_parameters: number;
+  active_parameters: number;
+}
+
 const API_BASE = '/api/v1';
 
 export const apiClient = {
@@ -53,6 +102,36 @@ export const apiClient = {
     return res.json();
   },
 
+  // -------------------------------------------------------------
+  // Authentication & Persona endpoints
+  // -------------------------------------------------------------
+  async getPersonas(): Promise<PersonaUser[]> {
+    const res = await fetch(`${API_BASE}/auth/personas`);
+    if (!res.ok) throw new Error('Failed to load personas from database');
+    return res.json();
+  },
+
+  async login(credentials: { email: string; password: string }): Promise<{
+    status: string;
+    message: string;
+    user: PersonaUser;
+    token: string;
+  }> {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Authentication failed');
+    }
+    return res.json();
+  },
+
+  // -------------------------------------------------------------
+  // Dashboard & Investigation endpoints
+  // -------------------------------------------------------------
   async getDashboardSummary(): Promise<DashboardSummary> {
     const res = await fetch(`${API_BASE}/dashboard/summary`);
     if (!res.ok) throw new Error('Failed to fetch dashboard summary');
@@ -140,6 +219,110 @@ export const apiClient = {
   async getIntegrationsStatus(): Promise<{ integrations: IntegrationItem[] }> {
     const res = await fetch(`${API_BASE}/integrations/status`);
     if (!res.ok) throw new Error('Failed to fetch integration statuses');
+    return res.json();
+  },
+
+  // -------------------------------------------------------------
+  // Admin Policies CRUD
+  // -------------------------------------------------------------
+  async getPolicies(params: { category?: string; status?: string } = {}): Promise<CompanyPolicy[]> {
+    const query = new URLSearchParams();
+    if (params.category && params.category !== 'ALL') query.set('category', params.category);
+    if (params.status && params.status !== 'ALL') query.set('status', params.status);
+
+    const res = await fetch(`${API_BASE}/admin/policies?${query.toString()}`);
+    if (!res.ok) throw new Error('Failed to fetch policies');
+    return res.json();
+  },
+
+  async createPolicy(policy: Partial<CompanyPolicy>): Promise<CompanyPolicy> {
+    const res = await fetch(`${API_BASE}/admin/policies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(policy),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to create policy');
+    }
+    return res.json();
+  },
+
+  async updatePolicy(id: string, policy: Partial<CompanyPolicy>): Promise<CompanyPolicy> {
+    const res = await fetch(`${API_BASE}/admin/policies/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(policy),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to update policy');
+    }
+    return res.json();
+  },
+
+  async deletePolicy(id: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/admin/policies/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to delete policy');
+    }
+  },
+
+  // -------------------------------------------------------------
+  // Admin Parameters CRUD
+  // -------------------------------------------------------------
+  async getParameters(params: { section?: string; is_active?: boolean } = {}): Promise<FraudParameter[]> {
+    const query = new URLSearchParams();
+    if (params.section && params.section !== 'ALL') query.set('section', params.section);
+    if (params.is_active !== undefined) query.set('is_active', params.is_active.toString());
+
+    const res = await fetch(`${API_BASE}/admin/parameters?${query.toString()}`);
+    if (!res.ok) throw new Error('Failed to fetch fraud parameters');
+    return res.json();
+  },
+
+  async createParameter(param: Partial<FraudParameter>): Promise<FraudParameter> {
+    const res = await fetch(`${API_BASE}/admin/parameters`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(param),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to create parameter');
+    }
+    return res.json();
+  },
+
+  async updateParameter(id: string, param: Partial<FraudParameter>): Promise<FraudParameter> {
+    const res = await fetch(`${API_BASE}/admin/parameters/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(param),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to update parameter');
+    }
+    return res.json();
+  },
+
+  async deleteParameter(id: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/admin/parameters/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to delete parameter');
+    }
+  },
+
+  async getParameterSections(): Promise<SectionSummary[]> {
+    const res = await fetch(`${API_BASE}/admin/sections`);
+    if (!res.ok) throw new Error('Failed to fetch sections summary');
     return res.json();
   }
 };

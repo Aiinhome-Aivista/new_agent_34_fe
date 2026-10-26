@@ -6,6 +6,7 @@ import {
   Activity,
   Database,
   PlayCircle,
+  Sliders,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -23,13 +24,28 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
-const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: BarChart3, description: 'Analytics & case metrics' },
-  { id: 'queue', label: 'Case Queue', icon: Layers, description: 'Active investigation cases' },
-  { id: 'actions', label: 'Action History', icon: Activity, description: 'Audit trail & past decisions' },
-  { id: 'integrations', label: 'Infrastructure', icon: Database, description: 'System health & integrations' },
-  { id: 'simulator', label: 'Simulator', icon: PlayCircle, description: 'Concurrency stress testing' },
-];
+const getNavItems = (role?: string) => {
+  const items = [
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3, description: 'Analytics & case metrics' },
+    { id: 'queue', label: 'Case Queue', icon: Layers, description: 'Active investigation cases' },
+    { id: 'actions', label: 'Action History', icon: Activity, description: 'Audit trail & past decisions' },
+    { id: 'integrations', label: 'Infrastructure', icon: Database, description: 'System health & integrations' },
+    { id: 'simulator', label: 'Simulator', icon: PlayCircle, description: 'Concurrency stress testing' },
+  ];
+
+  // Admin persona gets dedicated Policies & Parameters management
+  if (role === 'ADMIN') {
+    items.push({
+      id: 'admin',
+      label: 'Policies & Params',
+      icon: Sliders,
+      description: 'SOP policies & fraud thresholds',
+      badge: 'ADMIN',
+    });
+  }
+
+  return items;
+};
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, user, onLogout }) => {
   const { theme, toggleTheme } = useTheme();
@@ -183,7 +199,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, user,
           overflowX: 'hidden',
         }}
       >
-        {NAV_ITEMS.map((item) => {
+        {getNavItems(user.role).map((item: any) => {
           const Icon = item.icon;
           const isActive = currentTab === item.id || (currentTab === 'casedetail' && item.id === 'queue');
           return (
@@ -222,17 +238,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, user,
             >
               <Icon size={18} style={{ flexShrink: 0 }} />
               {!collapsed && (
-                <span
-                  style={{
-                    fontSize: '0.88rem',
-                    fontWeight: isActive ? 600 : 500,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {item.label}
-                </span>
+                <>
+                  <span
+                    style={{
+                      fontSize: '0.88rem',
+                      fontWeight: isActive ? 600 : 500,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                  {item.badge && (
+                    <span
+                      style={{
+                        marginLeft: 'auto',
+                        fontSize: '0.62rem',
+                        fontWeight: 800,
+                        padding: '1px 5px',
+                        borderRadius: '4px',
+                        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                        color: '#EF4444',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                      }}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </>
               )}
             </button>
           );

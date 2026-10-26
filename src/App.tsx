@@ -9,6 +9,7 @@ import { CaseDetailView } from './views/CaseDetailView';
 import { ActionHistoryView } from './views/ActionHistoryView';
 import { IntegrationsView } from './views/IntegrationsView';
 import { SimulatorView } from './views/SimulatorView';
+import { AdminManagementView } from './views/AdminManagementView';
 import './styles/globals.css';
 
 type Page = 'landing' | 'login' | 'app';
@@ -212,6 +213,7 @@ export function App() {
             {currentTab === 'simulator' && (
               <SimulatorView onNavigateToQueue={() => setCurrentTab('queue')} />
             )}
+            {currentTab === 'admin' && <AdminManagementView />}
           </main>
 
           {/* Fixed Footer */}
@@ -257,6 +259,7 @@ function getPageTitle(tab: string): string {
     actions: 'Action History',
     integrations: 'Infrastructure & Integrations',
     simulator: 'Concurrency Simulator',
+    admin: 'Policy & Parameter Engine',
   };
   return titles[tab] || 'FraudOps AI';
 }
@@ -269,6 +272,7 @@ function getPageSubtitle(tab: string, caseId: string | null): string {
     actions: 'Full audit trail of analyst decisions',
     integrations: 'System health & backend services',
     simulator: 'Stress-test ingestion pipeline',
+    admin: 'Manage organizational SOPs and detection parameter thresholds',
   };
   return subs[tab] || '';
 }
