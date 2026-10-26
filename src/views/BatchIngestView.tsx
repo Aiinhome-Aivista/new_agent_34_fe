@@ -98,7 +98,7 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
   };
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '32px 24px' }} className="animate-fade-in">
+    <div style={{ width: '100%', padding: '32px 36px' }} className="animate-fade-in">
       {/* Header */}
       <div
         style={{

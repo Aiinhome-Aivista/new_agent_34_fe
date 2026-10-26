@@ -107,7 +107,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateToQueue 
   };
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '32px 24px' }} className="animate-fade-in">
+    <div style={{ width: '100%', padding: '32px 36px' }} className="animate-fade-in">
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
           External Trigger Microservice · Concurrency Test Console

@@ -113,6 +113,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
     <div
       style={{
         minHeight: '100vh',
+        width: '100%',
         display: 'flex',
         background: 'var(--color-background)',
         position: 'relative',

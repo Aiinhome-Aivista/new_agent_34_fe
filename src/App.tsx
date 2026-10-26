@@ -83,6 +83,7 @@ export function App() {
         style={{
           display: 'flex',
           height: '100vh',
+          width: '100%',
           overflow: 'hidden',
           backgroundColor: 'var(--color-background)',
         }}
@@ -194,6 +195,7 @@ export function App() {
               overflowY: 'auto',
               overflowX: 'hidden',
               backgroundColor: 'var(--color-background)',
+              width: '100%',
             }}
           >
             {currentTab === 'dashboard' && <DashboardView onNavigate={handleNavigate} />}

@@ -65,7 +65,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack }
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '64px 24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+      <div style={{ width: '100%', padding: '64px 36px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
         Loading forensic case data from MySQL...
       </div>
     );
@@ -73,7 +73,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack }
 
   if (error || !caseData) {
     return (
-      <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ width: '100%', padding: '32px 36px' }}>
         <Button variant="secondary" size="sm" onClick={onBack} icon={<ArrowLeft size={14} />}>
           Back to Queue
         </Button>
@@ -91,7 +91,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack }
   const structured = latestRec?.structured_result || {};
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '32px 24px' }} className="animate-fade-in">
+    <div style={{ width: '100%', padding: '32px 36px' }} className="animate-fade-in">
       {/* Top Bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>

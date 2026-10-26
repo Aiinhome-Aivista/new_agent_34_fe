@@ -99,6 +99,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
     <div
       style={{
         minHeight: '100vh',
+        width: '100%',
         backgroundColor: 'var(--color-background)',
         display: 'flex',
         flexDirection: 'column',
