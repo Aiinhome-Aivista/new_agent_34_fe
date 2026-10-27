@@ -16,6 +16,7 @@ import './styles/globals.css';
 type Page = 'landing' | 'login' | 'app';
 
 interface User {
+  id?: string;
   name: string;
   role: string;
   email: string;
@@ -209,6 +210,7 @@ export function App() {
               <CaseDetailView
                 caseId={selectedCaseId}
                 onBack={() => setCurrentTab('queue')}
+                currentUser={user}
               />
             )}
             {currentTab === 'actions' && <ActionHistoryView />}

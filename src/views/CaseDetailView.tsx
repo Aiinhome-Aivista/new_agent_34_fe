@@ -9,9 +9,10 @@ import type { InvestigationCase } from '../api/client';
 interface CaseDetailViewProps {
   caseId: string;
   onBack: () => void;
+  currentUser?: { id?: string; name: string; role: string; email: string } | null;
 }
 
-export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack }) => {
+export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, currentUser }) => {
   const [caseData, setCaseData] = useState<InvestigationCase | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,10 +49,11 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack }
     setSubmitting(true);
     setSubmitSuccess(null);
     try {
+      const reviewerId = currentUser?.id || currentUser?.email || 'SUB_ANALYST_01';
       const res = await apiClient.submitDecision(caseId, {
         decision,
         reason: reason.trim(),
-        reviewer_id: 'ANALYST_DESK_01',
+        reviewer_id: reviewerId,
         policy_reference: policyRef.trim() || undefined,
       });
       setSubmitSuccess(`Decision recorded: ${res.status}. Action scheduled/closed per policy.`);
