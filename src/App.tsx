@@ -46,6 +46,9 @@ export function App() {
       setSelectedCaseId(caseId);
       setCurrentTab('casedetail');
     } else {
+      if (tab === 'queue') {
+        setSelectedCaseId(null);
+      }
       setCurrentTab(tab);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -203,25 +206,35 @@ export function App() {
             {currentTab === 'queue' && (
               <QueueView
                 onSelectCase={handleSelectCase}
-                initialCaseId={selectedCaseId || undefined}
               />
             )}
             {currentTab === 'casedetail' && selectedCaseId && (
               <CaseDetailView
                 caseId={selectedCaseId}
-                onBack={() => setCurrentTab('queue')}
+                onBack={() => {
+                  setSelectedCaseId(null);
+                  setCurrentTab('queue');
+                }}
                 currentUser={user}
               />
             )}
             {currentTab === 'actions' && <ActionHistoryView />}
             {currentTab === 'integrations' && <IntegrationsView />}
             {currentTab === 'simulator' && (
-              <SimulatorView onNavigateToQueue={() => setCurrentTab('queue')} />
+              <SimulatorView
+                onNavigateToQueue={() => {
+                  setSelectedCaseId(null);
+                  setCurrentTab('queue');
+                }}
+              />
             )}
             {currentTab === 'batch-ingest' && (
               <BatchIngestView
                 onNavigateToCase={handleSelectCase}
-                onNavigateToQueue={() => setCurrentTab('queue')}
+                onNavigateToQueue={() => {
+                  setSelectedCaseId(null);
+                  setCurrentTab('queue');
+                }}
               />
             )}
             {currentTab === 'admin' && <AdminManagementView />}
