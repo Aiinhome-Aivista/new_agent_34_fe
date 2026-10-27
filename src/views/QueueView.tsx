@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, ChevronLeft, ChevronRight, Eye, RefreshCw } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Eye, RefreshCw, X } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
@@ -51,6 +51,10 @@ export const QueueView: React.FC<QueueViewProps> = ({ onSelectCase, initialCaseI
     fetchQueue();
   };
 
+  const handleClearSearch = () => {
+    setSearch('');
+  };
+
   const totalPages = Math.ceil(total / pageSize) || 1;
 
   return (
@@ -64,7 +68,7 @@ export const QueueView: React.FC<QueueViewProps> = ({ onSelectCase, initialCaseI
             Server-paginated case inventory. Only genuine records persisted in database.
           </p>
         </div>
-        <Button variant="secondary" size="sm" onClick={fetchQueue} icon={<RefreshCw size={14} />}>
+        <Button variant="secondary" size="sm" onClick={() => fetchQueue()} icon={<RefreshCw size={14} />}>
           Refresh Queue
         </Button>
       </div>
@@ -77,9 +81,43 @@ export const QueueView: React.FC<QueueViewProps> = ({ onSelectCase, initialCaseI
               placeholder="Search by Case ID, TXN, User, or Merchant..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{ width: '100%', paddingLeft: '34px' }}
+              style={{ width: '100%', paddingLeft: '34px', paddingRight: search ? '36px' : '12px' }}
             />
             <Search size={16} color="var(--color-placeholder)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+            {search && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                aria-label="Clear search"
+                title="Clear search"
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: 'var(--radius-full)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--color-text-secondary)',
+                  transition: 'color var(--transition-fast), background-color var(--transition-fast)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--color-text-primary)';
+                  e.currentTarget.style.backgroundColor = 'var(--color-divider)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--color-text-secondary)';
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <X size={15} />
+              </button>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
