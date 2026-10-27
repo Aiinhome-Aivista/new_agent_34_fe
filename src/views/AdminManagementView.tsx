@@ -27,6 +27,7 @@ import {
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
+import { Modal } from '../components/common/Modal';
 import { apiClient } from '../api/client';
 import type { CompanyPolicy, FraudParameter, SectionSummary } from '../api/client';
 
@@ -1669,342 +1670,276 @@ export const AdminManagementView: React.FC = () => {
       )}
 
       {/* POLICY MODAL (CREATE / EDIT) */}
-      {isPolicyModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-border)',
-              maxWidth: '600px',
-              width: '100%',
-              padding: '24px',
-              boxShadow: 'var(--shadow-lg)',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>
-                {editingPolicy ? `Edit Policy: ${editingPolicy.document_key}` : 'Create New Company Policy'}
-              </h2>
-              <button
-                onClick={() => setIsPolicyModalOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
-              >
-                <X size={18} />
-              </button>
-            </div>
+      <Modal
+        isOpen={isPolicyModalOpen}
+        onClose={() => setIsPolicyModalOpen(false)}
+        title={editingPolicy ? `Edit Policy: ${editingPolicy.document_key}` : 'Create New Company Policy'}
+        subtitle="Configure organization fraud rules, thresholds, and vector-indexed mandatory clauses"
+        maxWidth="640px"
+        onSubmit={handleSavePolicy}
+        footer={
+          <>
+            <Button variant="secondary" type="button" onClick={() => setIsPolicyModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit">
+              {editingPolicy ? 'Update Policy' : 'Create Policy'}
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+              Document Key *
+            </label>
+            <input
+              type="text"
+              required
+              disabled={!!editingPolicy}
+              value={policyForm.document_key}
+              onChange={(e) => setPolicyForm({ ...policyForm, document_key: e.target.value.toUpperCase() })}
+              placeholder="e.g. FRAUD_SOP_06"
+              style={{ width: '100%' }}
+            />
+          </div>
 
-            <form onSubmit={handleSavePolicy} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    Document Key *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    disabled={!!editingPolicy}
-                    value={policyForm.document_key}
-                    onChange={(e) => setPolicyForm({ ...policyForm, document_key: e.target.value.toUpperCase() })}
-                    placeholder="e.g. FRAUD_SOP_06"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    Version
-                  </label>
-                  <input
-                    type="text"
-                    value={policyForm.version}
-                    onChange={(e) => setPolicyForm({ ...policyForm, version: e.target.value })}
-                    placeholder="1.0"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Policy Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={policyForm.title}
-                  onChange={(e) => setPolicyForm({ ...policyForm, title: e.target.value })}
-                  placeholder="e.g. Cross-Border Velocity Limits & KYC Escalation"
-                  style={{ width: '100%' }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    Category
-                  </label>
-                  <select
-                    value={policyForm.category}
-                    onChange={(e) => setPolicyForm({ ...policyForm, category: e.target.value })}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="CHARGEBACK">CHARGEBACK</option>
-                    <option value="AUTO_ACTION">AUTO_ACTION</option>
-                    <option value="DEVICE_RING">DEVICE_RING</option>
-                    <option value="HUMAN_REVIEW">HUMAN_REVIEW</option>
-                    <option value="IDENTITY">IDENTITY</option>
-                    <option value="GENERAL">GENERAL</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    Action Impact
-                  </label>
-                  <select
-                    value={policyForm.action_impact}
-                    onChange={(e) => setPolicyForm({ ...policyForm, action_impact: e.target.value })}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="BLOCKING">BLOCKING (Requires Review)</option>
-                    <option value="RESTRICTIVE">RESTRICTIVE (Payment Hold)</option>
-                    <option value="MONITORING">MONITORING (Watchlist)</option>
-                    <option value="ADVISORY">ADVISORY (Identity Check)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Summary Description
-                </label>
-                <textarea
-                  rows={2}
-                  value={policyForm.description}
-                  onChange={(e) => setPolicyForm({ ...policyForm, description: e.target.value })}
-                  placeholder="Brief summary of policy conditions and thresholds..."
-                  style={{ width: '100%' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Policy Content / Mandatory Clauses (Vector RAG Indexed)
-                </label>
-                <textarea
-                  rows={4}
-                  value={policyForm.content}
-                  onChange={(e) => setPolicyForm({ ...policyForm, content: e.target.value })}
-                  placeholder="Specify exact clauses that the LLM agent will retrieve and ground recommendations against..."
-                  style={{ width: '100%' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <Button variant="secondary" type="button" onClick={() => setIsPolicyModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button variant="primary" type="submit">
-                  {editingPolicy ? 'Update Policy' : 'Create Policy'}
-                </Button>
-              </div>
-            </form>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+              Version
+            </label>
+            <input
+              type="text"
+              value={policyForm.version}
+              onChange={(e) => setPolicyForm({ ...policyForm, version: e.target.value })}
+              placeholder="1.0"
+              style={{ width: '100%' }}
+            />
           </div>
         </div>
-      )}
+
+        <div>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+            Policy Title *
+          </label>
+          <input
+            type="text"
+            required
+            value={policyForm.title}
+            onChange={(e) => setPolicyForm({ ...policyForm, title: e.target.value })}
+            placeholder="e.g. Cross-Border Velocity Limits & KYC Escalation"
+            style={{ width: '100%' }}
+          />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+              Category
+            </label>
+            <select
+              value={policyForm.category}
+              onChange={(e) => setPolicyForm({ ...policyForm, category: e.target.value })}
+              style={{ width: '100%' }}
+            >
+              <option value="CHARGEBACK">CHARGEBACK</option>
+              <option value="AUTO_ACTION">AUTO_ACTION</option>
+              <option value="DEVICE_RING">DEVICE_RING</option>
+              <option value="HUMAN_REVIEW">HUMAN_REVIEW</option>
+              <option value="IDENTITY">IDENTITY</option>
+              <option value="GENERAL">GENERAL</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+              Action Impact
+            </label>
+            <select
+              value={policyForm.action_impact}
+              onChange={(e) => setPolicyForm({ ...policyForm, action_impact: e.target.value })}
+              style={{ width: '100%' }}
+            >
+              <option value="BLOCKING">BLOCKING (Requires Review)</option>
+              <option value="RESTRICTIVE">RESTRICTIVE (Payment Hold)</option>
+              <option value="MONITORING">MONITORING (Watchlist)</option>
+              <option value="ADVISORY">ADVISORY (Identity Check)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+            Summary Description
+          </label>
+          <textarea
+            rows={2}
+            value={policyForm.description}
+            onChange={(e) => setPolicyForm({ ...policyForm, description: e.target.value })}
+            placeholder="Brief summary of policy conditions and thresholds..."
+            style={{ width: '100%' }}
+          />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+            Policy Content / Mandatory Clauses (Vector RAG Indexed)
+          </label>
+          <textarea
+            rows={4}
+            value={policyForm.content}
+            onChange={(e) => setPolicyForm({ ...policyForm, content: e.target.value })}
+            placeholder="Specify exact clauses that the LLM agent will retrieve and ground recommendations against..."
+            style={{ width: '100%' }}
+          />
+        </div>
+      </Modal>
 
       {/* PARAMETER MODAL (CREATE / EDIT) */}
-      {isParamModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-border)',
-              maxWidth: '600px',
-              width: '100%',
-              padding: '24px',
-              boxShadow: 'var(--shadow-lg)',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>
-                {editingParam ? `Edit Parameter: ${editingParam.name}` : 'Add Fraud Detection Parameter'}
-              </h2>
-              <button
-                onClick={() => setIsParamModalOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)' }}
-              >
-                <X size={18} />
-              </button>
-            </div>
+      <Modal
+        isOpen={isParamModalOpen}
+        onClose={() => setIsParamModalOpen(false)}
+        title={editingParam ? `Edit Parameter: ${editingParam.name}` : 'Add Fraud Detection Parameter'}
+        subtitle="Define automated fraud signals, risk weights, and evaluation thresholds across investigative sections"
+        maxWidth="640px"
+        onSubmit={handleSaveParam}
+        footer={
+          <>
+            <Button variant="secondary" type="button" onClick={() => setIsParamModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit">
+              {editingParam ? 'Save Changes' : 'Add Parameter'}
+            </Button>
+          </>
+        }
+      >
+        <div>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+            Parameter Name *
+          </label>
+          <input
+            type="text"
+            required
+            value={paramForm.name}
+            onChange={(e) => setParamForm({ ...paramForm, name: e.target.value })}
+            placeholder="e.g. Card Payment Failure Velocity"
+            style={{ width: '100%' }}
+          />
+        </div>
 
-            <form onSubmit={handleSaveParam} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Parameter Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={paramForm.name}
-                  onChange={(e) => setParamForm({ ...paramForm, name: e.target.value })}
-                  placeholder="e.g. Card Payment Failure Velocity"
-                  style={{ width: '100%' }}
-                />
-              </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+              Parameter Key *
+            </label>
+            <input
+              type="text"
+              required
+              disabled={!!editingParam}
+              value={paramForm.parameter_key}
+              onChange={(e) => setParamForm({ ...paramForm, parameter_key: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+              placeholder="e.g. card_payment_failure_velocity"
+              style={{ width: '100%' }}
+            />
+          </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    Parameter Key *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    disabled={!!editingParam}
-                    value={paramForm.parameter_key}
-                    onChange={(e) => setParamForm({ ...paramForm, parameter_key: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
-                    placeholder="e.g. card_payment_failure_velocity"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    Section *
-                  </label>
-                  <select
-                    value={paramForm.section}
-                    onChange={(e) => setParamForm({ ...paramForm, section: e.target.value })}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="USER_PROFILE">👤 User Profile</option>
-                    <option value="PAYMENT_TRANSACTION">💳 Payment Transaction</option>
-                    <option value="ORDER_DETAILS">📦 Order Details</option>
-                    <option value="CHARGEBACK_DISPUTE">⚖️ Chargeback Dispute</option>
-                    <option value="GRAPH_NETWORK">🕸️ Graph Network</option>
-                    <option value="GATEWAY_RULE">🛡️ Gateway Rule</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    Data Type
-                  </label>
-                  <select
-                    value={paramForm.data_type}
-                    onChange={(e) => setParamForm({ ...paramForm, data_type: e.target.value })}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="STRING">STRING</option>
-                    <option value="NUMBER">NUMBER</option>
-                    <option value="PERCENTAGE">PERCENTAGE</option>
-                    <option value="BOOLEAN">BOOLEAN</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    Threshold / Trigger Value *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={paramForm.threshold_value}
-                    onChange={(e) => setParamForm({ ...paramForm, threshold_value: e.target.value })}
-                    placeholder="e.g. 3, 50000, 1.0%, TRUE"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    Risk Weight
-                  </label>
-                  <select
-                    value={paramForm.risk_weight}
-                    onChange={(e) => setParamForm({ ...paramForm, risk_weight: e.target.value })}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="LOW">LOW</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="HIGH">HIGH</option>
-                    <option value="CRITICAL">CRITICAL</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', marginTop: '24px', gap: '8px' }}>
-                  <input
-                    type="checkbox"
-                    id="is_active_toggle"
-                    checked={paramForm.is_active}
-                    onChange={(e) => setParamForm({ ...paramForm, is_active: e.target.checked })}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                  />
-                  <label htmlFor="is_active_toggle" style={{ fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
-                    Parameter Active in Engine
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Forensic Description / Rule Rationale *
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  value={paramForm.description}
-                  onChange={(e) => setParamForm({ ...paramForm, description: e.target.value })}
-                  placeholder="Explain why this threshold is set and how the agent uses it to detect fraud vs legitimate transactions..."
-                  style={{ width: '100%' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <Button variant="secondary" type="button" onClick={() => setIsParamModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button variant="primary" type="submit">
-                  {editingParam ? 'Save Changes' : 'Add Parameter'}
-                </Button>
-              </div>
-            </form>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+              Section *
+            </label>
+            <select
+              value={paramForm.section}
+              onChange={(e) => setParamForm({ ...paramForm, section: e.target.value })}
+              style={{ width: '100%' }}
+            >
+              <option value="USER_PROFILE">👤 User Profile</option>
+              <option value="PAYMENT_TRANSACTION">💳 Payment Transaction</option>
+              <option value="ORDER_DETAILS">📦 Order Details</option>
+              <option value="CHARGEBACK_DISPUTE">⚖️ Chargeback Dispute</option>
+              <option value="GRAPH_NETWORK">🕸️ Graph Network</option>
+              <option value="GATEWAY_RULE">🛡️ Gateway Rule</option>
+            </select>
           </div>
         </div>
-      )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+              Data Type
+            </label>
+            <select
+              value={paramForm.data_type}
+              onChange={(e) => setParamForm({ ...paramForm, data_type: e.target.value })}
+              style={{ width: '100%' }}
+            >
+              <option value="STRING">STRING</option>
+              <option value="NUMBER">NUMBER</option>
+              <option value="PERCENTAGE">PERCENTAGE</option>
+              <option value="BOOLEAN">BOOLEAN</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+              Threshold / Trigger Value *
+            </label>
+            <input
+              type="text"
+              required
+              value={paramForm.threshold_value}
+              onChange={(e) => setParamForm({ ...paramForm, threshold_value: e.target.value })}
+              placeholder="e.g. 3, 50000, 1.0%, TRUE"
+              style={{ width: '100%' }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+              Risk Weight
+            </label>
+            <select
+              value={paramForm.risk_weight}
+              onChange={(e) => setParamForm({ ...paramForm, risk_weight: e.target.value })}
+              style={{ width: '100%' }}
+            >
+              <option value="LOW">LOW</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="HIGH">HIGH</option>
+              <option value="CRITICAL">CRITICAL</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: '24px', gap: '8px' }}>
+            <input
+              type="checkbox"
+              id="is_active_toggle"
+              checked={paramForm.is_active}
+              onChange={(e) => setParamForm({ ...paramForm, is_active: e.target.checked })}
+              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+            />
+            <label htmlFor="is_active_toggle" style={{ fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
+              Parameter Active in Engine
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+            Forensic Description / Rule Rationale *
+          </label>
+          <textarea
+            rows={3}
+            required
+            value={paramForm.description}
+            onChange={(e) => setParamForm({ ...paramForm, description: e.target.value })}
+            placeholder="Explain why this threshold is set and how the agent uses it to detect fraud vs legitimate transactions..."
+            style={{ width: '100%' }}
+          />
+        </div>
+      </Modal>
     </div>
   );
 };
