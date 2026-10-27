@@ -237,9 +237,37 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
         {/* Right Column: Evidence Inventory & Graph Footprint */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Evidence Inventory */}
-          <Card title="Retrieved Evidence Inventory">
+          <Card
+            title="Retrieved Evidence Inventory"
+            action={
+              caseData.evidence_items && caseData.evidence_items.length > 0 ? (
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: 'rgba(255, 90, 20, 0.1)',
+                    color: 'var(--color-primary)',
+                    border: '1px solid rgba(255, 90, 20, 0.25)',
+                  }}
+                >
+                  {caseData.evidence_items.length} {caseData.evidence_items.length === 1 ? 'Item' : 'Items'}
+                </span>
+              ) : null
+            }
+          >
             {caseData.evidence_items && caseData.evidence_items.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  maxHeight: '400px',
+                  overflowY: 'auto',
+                  paddingRight: '6px',
+                }}
+              >
                 {caseData.evidence_items.map((ev: any) => (
                   <div
                     key={ev.id}
@@ -267,6 +295,9 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                           fontSize: '0.75rem',
                           fontFamily: 'var(--font-family-mono)',
                           overflowX: 'auto',
+                          maxHeight: '160px',
+                          overflowY: 'auto',
+                          border: '1px solid var(--color-border)',
                         }}
                       >
                         {JSON.stringify(ev.normalized_payload, null, 2)}
