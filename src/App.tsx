@@ -11,6 +11,8 @@ import { ActionHistoryView } from './views/ActionHistoryView';
 import { SimulatorView } from './views/SimulatorView';
 import { AdminManagementView } from './views/AdminManagementView';
 import { BatchIngestView } from './views/BatchIngestView';
+import { TaskProgressProvider } from './context/TaskProgressContext';
+import { GlobalTaskProgressDock } from './components/common/GlobalTaskProgressDock';
 import './styles/globals.css';
 
 type Page = 'landing' | 'login' | 'app';
@@ -83,7 +85,8 @@ export function App() {
 
   return (
     <ThemeProvider>
-      <div
+      <TaskProgressProvider onNavigate={handleNavigate}>
+        <div
         style={{
           display: 'flex',
           height: '100vh',
@@ -266,11 +269,15 @@ export function App() {
         </div>
       </div>
 
-      <style>{`
-        @media (min-width: 768px) {
-          .topbar-role { display: inline !important; }
-        }
-      `}</style>
+        {/* Global Floating Task Progress Dock at Bottom-Right */}
+        <GlobalTaskProgressDock />
+
+        <style>{`
+          @media (min-width: 768px) {
+            .topbar-role { display: inline !important; }
+          }
+        `}</style>
+      </TaskProgressProvider>
     </ThemeProvider>
   );
 }

@@ -347,6 +347,46 @@ export const apiClient = {
     return res.json();
   },
 
+  async uploadBatchFileStream(
+    formData: FormData,
+    onProgress?: (data: any) => void
+  ): Promise<{
+    status: string;
+    message: string;
+    total_rows: number;
+    ingested: number;
+    triggered_cases: any[];
+  }> {
+    const res = await fetch(`${API_BASE}/ingest/upload-stream`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        Accept: 'text/event-stream',
+      },
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to ingest batch file');
+    }
+
+    const result = await readSseStream<{
+      status: string;
+      message: string;
+      total_rows: number;
+      ingested: number;
+      triggered_cases: any[];
+    }>(res, onProgress);
+
+    return result || {
+      status: 'SUCCESS',
+      message: 'Batch ingestion completed.',
+      total_rows: 0,
+      ingested: 0,
+      triggered_cases: [],
+    };
+  },
+
   async getIngestStatus(): Promise<{
     auto_trigger_enabled: boolean;
     poll_interval_seconds: number;
@@ -388,6 +428,55 @@ export const apiClient = {
     return res.json();
   },
 
+  async uploadKnowledgeDocumentStream(
+    formData: FormData,
+    onProgress?: (data: any) => void
+  ): Promise<{
+    status: string;
+    document_key: string;
+    title: string;
+    category: string;
+    total_characters: number;
+    chunks_indexed: number;
+    filename: string;
+    message: string;
+  }> {
+    const res = await fetch(`${API_BASE}/admin/knowledge/upload-stream`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        Accept: 'text/event-stream',
+      },
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to upload and index document');
+    }
+
+    const result = await readSseStream<{
+      status: string;
+      document_key: string;
+      title: string;
+      category: string;
+      total_characters: number;
+      chunks_indexed: number;
+      filename: string;
+      message: string;
+    }>(res, onProgress);
+
+    return result || {
+      status: 'SUCCESS',
+      document_key: '',
+      title: '',
+      category: 'GENERAL',
+      total_characters: 0,
+      chunks_indexed: 0,
+      filename: '',
+      message: 'Document upload and indexing completed.',
+    };
+  },
+
   async reindexKnowledge(): Promise<{
     status: string;
     policies_reindexed: number;
@@ -414,3 +503,63 @@ export const apiClient = {
     return res.json();
   }
 };
+
+/**
+ * Reads Server-Sent Events (SSE) stream from a response and fires onProgress callbacks.
+ */
+async function readSseStream<T>(
+  response: Response,
+  onProgress?: (data: any) => void
+): Promise<T | null> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return response.json();
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let finalResult: any = null;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data: ')) {
+          try {
+            const payload = JSON.parse(trimmed.slice(6));
+            if (onProgress) {
+              onProgress(payload);
+            }
+            if (payload.event === 'complete') {
+              finalResult = payload;
+            }
+          } catch (e) {
+            console.warn('Could not parse SSE line:', trimmed, e);
+          }
+        }
+      }
+    }
+
+    if (buffer.trim().startsWith('data: ')) {
+      try {
+        const payload = JSON.parse(buffer.trim().slice(6));
+        if (onProgress) onProgress(payload);
+        if (payload.event === 'complete') finalResult = payload;
+      } catch (e) {
+        // ignore
+      }
+    }
+  } catch (streamErr) {
+    console.error('Error reading SSE stream:', streamErr);
+  }
+
+  return finalResult;
+}
+

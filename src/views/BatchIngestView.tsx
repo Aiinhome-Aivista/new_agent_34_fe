@@ -3,25 +3,19 @@ import {
   FileSpreadsheet,
   UploadCloud,
   CheckCircle,
-  AlertTriangle,
   Clock,
   Download,
   RefreshCw,
   ArrowRight,
-  ShieldAlert,
-  ShieldCheck,
   Cpu,
   Layers,
-  Sliders,
-  Check,
-  FileText,
-  AlertCircle
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { apiClient } from '../api/client';
 import { formatToIST } from '../utils/dateUtils';
+import { useTaskProgress } from '../context/TaskProgressContext';
 
 interface BatchIngestViewProps {
   onNavigateToCase?: (caseId: string) => void;
@@ -32,10 +26,17 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
   onNavigateToCase,
   onNavigateToQueue
 }) => {
+  const {
+    activeTask,
+    startBatchIngest,
+    latestBatchResult,
+  } = useTaskProgress();
+
+  const isBatchRunning = activeTask?.type === 'batch_ingest' && activeTask?.status === 'running';
+  const displayedResult = (activeTask?.type === 'batch_ingest' && activeTask?.result) || latestBatchResult;
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [autoInvestigate, setAutoInvestigate] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Poller Status State
@@ -64,7 +65,6 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
       setError(null);
-      setResult(null);
     }
   };
 
@@ -75,22 +75,13 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
       return;
     }
 
-    setUploading(true);
     setError(null);
-    setResult(null);
-
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-    formData.append('auto_investigate', autoInvestigate.toString());
 
     try {
-      const res = await apiClient.uploadBatchFile(formData);
-      setResult(res);
+      await startBatchIngest(selectedFile, autoInvestigate);
       fetchPollerStatus();
     } catch (err: any) {
       setError(err.message || 'File ingestion failed.');
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -351,6 +342,37 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
               </label>
             </div>
 
+            {isBatchRunning && activeTask && (
+              <div
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid #10B981',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.85rem', color: '#10B981' }}>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>Processing Batch Ingestion Live</span>
+                  </div>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                    {activeTask.current} / {activeTask.total || '?'} records ({activeTask.progress}%)
+                  </span>
+                </div>
+                <div style={{ width: '100%', height: '6px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--color-border)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${activeTask.progress}%`, backgroundColor: '#10B981', transition: 'width 0.35s ease' }} />
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{activeTask.message}</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>Floating dock active at bottom-right</span>
+                </div>
+              </div>
+            )}
+
             {error && (
               <div
                 style={{
@@ -369,10 +391,12 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
             <Button
               type="submit"
               variant="primary"
-              disabled={uploading || !selectedFile}
-              icon={<UploadCloud size={16} />}
+              disabled={isBatchRunning || !selectedFile}
+              icon={isBatchRunning ? <RefreshCw size={16} className="animate-spin" /> : <UploadCloud size={16} />}
             >
-              {uploading ? 'Processing File & Running Investigations...' : 'Ingest File & Trigger Agent'}
+              {isBatchRunning
+                ? `Ingesting ${activeTask?.current || 0}/${activeTask?.total || '?'} records (${activeTask?.progress || 0}%)...`
+                : 'Ingest File & Trigger Agent'}
             </Button>
           </form>
         </Card>
@@ -405,7 +429,7 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
       </div>
 
       {/* Ingestion Results & Case Table */}
-      {result && (
+      {displayedResult && (
         <div style={{ marginBottom: '32px' }} className="animate-fade-in">
           <div
             style={{
@@ -424,7 +448,7 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
               gap: '10px',
             }}
           >
-            <div>{result.message}</div>
+            <div>{displayedResult.message}</div>
             {onNavigateToQueue && (
               <Button variant="secondary" size="sm" onClick={onNavigateToQueue} icon={<ArrowRight size={14} />}>
                 Go to Case Queue
@@ -432,8 +456,8 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
             )}
           </div>
 
-          {result.triggered_cases && result.triggered_cases.length > 0 && (
-            <Card title={`Triggered Investigation Cases (${result.triggered_cases.length})`}>
+          {displayedResult.triggered_cases && displayedResult.triggered_cases.length > 0 && (
+            <Card title={`Triggered Investigation Cases (${displayedResult.triggered_cases.length})`}>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                   <thead>
@@ -456,7 +480,7 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {result.triggered_cases.map((c: any) => (
+                    {displayedResult.triggered_cases.map((c: any) => (
                       <tr
                         key={c.case_id}
                         style={{

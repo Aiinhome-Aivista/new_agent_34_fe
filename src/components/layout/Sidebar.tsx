@@ -25,8 +25,16 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
-const getNavItems = (role?: string) => {
-  const items = [
+interface NavItem {
+  id: string;
+  label: string;
+  icon: any;
+  description: string;
+  badge?: string;
+}
+
+const getNavItems = (role?: string): NavItem[] => {
+  const items: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, description: 'Analytics & case metrics' },
     { id: 'queue', label: 'Case Queue', icon: Layers, description: 'Active investigation cases' },
     { id: 'batch-ingest', label: 'Batch Ingestion', icon: FileSpreadsheet, description: 'Excel/CSV auto-trigger' },
