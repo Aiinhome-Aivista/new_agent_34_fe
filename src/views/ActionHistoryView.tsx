@@ -5,6 +5,7 @@ import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { EmptyState } from '../components/common/EmptyState';
 import { apiClient } from '../api/client';
+import { formatToIST } from '../utils/dateUtils';
 
 export const ActionHistoryView: React.FC = () => {
   const [actions, setActions] = useState<any[]>([]);
@@ -84,7 +85,7 @@ export const ActionHistoryView: React.FC = () => {
                       {a.downstream_reference || 'Pending'}
                     </td>
                     <td style={{ padding: '12px 16px', color: 'var(--color-text-secondary)', fontSize: '0.82rem' }}>
-                      {a.executed_at ? new Date(a.executed_at).toLocaleString() : 'N/A'}
+                      {formatToIST(a.executed_at, { fallback: 'N/A' })}
                     </td>
                   </tr>
                 ))}

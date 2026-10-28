@@ -4,6 +4,7 @@ import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { apiClient } from '../api/client';
+import { formatTimeToIST } from '../utils/dateUtils';
 
 interface SimulatorViewProps {
   onNavigateToQueue: () => void;
@@ -24,7 +25,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateToQueue 
   } | null>(null);
 
   const appendLog = (msg: string) => {
-    setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+    setLogs((prev) => [...prev, `[${formatTimeToIST(new Date())}] ${msg}`]);
   };
 
   const runSimulation = async () => {

@@ -21,6 +21,7 @@ import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { apiClient } from '../api/client';
+import { formatToIST } from '../utils/dateUtils';
 
 interface BatchIngestViewProps {
   onNavigateToCase?: (caseId: string) => void;
@@ -209,7 +210,7 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
               </span>
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-              Interval: <strong>{pollerStatus?.poll_interval_seconds || 30}s</strong> (configured in <code>.env</code>)
+              Interval: <strong>{pollerStatus?.poll_interval_seconds || 30}s</strong> · Last Polled: <strong>{formatToIST(pollerStatus?.last_polled_at, { fallback: 'Standby / Just now' })}</strong>
             </div>
           </div>
         </div>

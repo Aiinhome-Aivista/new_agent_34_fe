@@ -5,6 +5,7 @@ import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { apiClient } from '../api/client';
 import type { InvestigationCase } from '../api/client';
+import { formatToIST } from '../utils/dateUtils';
 
 interface CaseDetailViewProps {
   caseId: string;
@@ -109,7 +110,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
               <Badge type={caseData.status}>{caseData.status.replace('_', ' ')}</Badge>
             </div>
             <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-              Idempotency Key: <code style={{ color: 'var(--color-primary)' }}>{caseData.idempotency_key}</code>
+              Received: <strong>{formatToIST(caseData.created_at)}</strong> · Idempotency Key: <code style={{ color: 'var(--color-primary)' }}>{caseData.idempotency_key}</code>
             </span>
           </div>
         </div>

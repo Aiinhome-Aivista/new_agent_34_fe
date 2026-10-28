@@ -6,6 +6,7 @@ import { Button } from '../components/common/Button';
 import { EmptyState } from '../components/common/EmptyState';
 import { apiClient } from '../api/client';
 import type { DashboardSummary } from '../api/client';
+import { formatTimeToIST } from '../utils/dateUtils';
 
 interface DashboardViewProps {
   onNavigate: (tab: string, caseId?: string) => void;
@@ -188,7 +189,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                       </span>
                     </div>
                     <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.78rem', fontFamily: 'var(--font-family-mono)' }}>
-                      {new Date(event.event_timestamp).toLocaleTimeString()}
+                      {formatTimeToIST(event.event_timestamp)}
                     </span>
                   </div>
                 ))

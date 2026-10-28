@@ -6,6 +6,7 @@ import { Button } from '../components/common/Button';
 import { EmptyState } from '../components/common/EmptyState';
 import { apiClient } from '../api/client';
 import type { InvestigationCase } from '../api/client';
+import { formatToIST } from '../utils/dateUtils';
 
 interface QueueViewProps {
   onSelectCase: (caseId: string) => void;
@@ -199,7 +200,7 @@ export const QueueView: React.FC<QueueViewProps> = ({ onSelectCase, initialCaseI
                       {c.transaction_id || c.user_id_ref || c.merchant_id_ref || '—'}
                     </td>
                     <td style={{ padding: '12px 16px', color: 'var(--color-text-secondary)', fontSize: '0.82rem' }}>
-                      {new Date(c.created_at).toLocaleString()}
+                      {formatToIST(c.created_at)}
                     </td>
                     <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                       <Button size="sm" variant="outline" onClick={() => onSelectCase(c.id)} icon={<Eye size={14} />}>
