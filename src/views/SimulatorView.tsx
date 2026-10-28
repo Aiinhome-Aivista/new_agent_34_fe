@@ -3,6 +3,7 @@ import { Play, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
+import { GlobalLoader } from '../components/common/GlobalLoader';
 import { apiClient } from '../api/client';
 import { formatTimeToIST } from '../utils/dateUtils';
 
@@ -202,7 +203,14 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateToQueue 
         </Card>
 
         <Card title="Concurrency Execution Diagnostics">
-          {testStats ? (
+          {isRunning ? (
+            <GlobalLoader
+              size="md"
+              text="Firing Concurrent Fraud Signals"
+              subtext={`Dispatching ${numRequests} signals with concurrency ${concurrency}...`}
+              badge="Live Stress Test"
+            />
+          ) : testStats ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">
               <div
                 style={{

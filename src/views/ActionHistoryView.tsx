@@ -4,6 +4,7 @@ import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { EmptyState } from '../components/common/EmptyState';
+import { GlobalLoader } from '../components/common/GlobalLoader';
 import { apiClient } from '../api/client';
 import { formatToIST } from '../utils/dateUtils';
 
@@ -44,9 +45,12 @@ export const ActionHistoryView: React.FC = () => {
       </div>
 
       {loading ? (
-        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-          Loading action execution history from database...
-        </div>
+        <GlobalLoader
+          size="md"
+          text="Loading Action Execution History"
+          subtext="Retrieving immutable audit logs and authorized mutations..."
+          badge="Audit Trail"
+        />
       ) : actions.length === 0 ? (
         <EmptyState
           title="No Actions Executed Yet"

@@ -4,6 +4,7 @@ import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { EmptyState } from '../components/common/EmptyState';
+import { GlobalLoader } from '../components/common/GlobalLoader';
 import { apiClient } from '../api/client';
 import type { InvestigationCase } from '../api/client';
 import { formatToIST } from '../utils/dateUtils';
@@ -153,9 +154,12 @@ export const QueueView: React.FC<QueueViewProps> = ({ onSelectCase, initialCaseI
       </Card>
 
       {loading ? (
-        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-          Loading case queue from database...
-        </div>
+        <GlobalLoader
+          size="md"
+          text="Loading Investigation Queue"
+          subtext="Querying active cases, triage scores, and assignment status..."
+          badge="Queue Sync"
+        />
       ) : cases.length === 0 ? (
         <EmptyState
           title="No Matching Cases in Queue"

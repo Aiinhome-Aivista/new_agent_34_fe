@@ -1,0 +1,260 @@
+/* ==========================================================================
+   Global Loader - Lottie-accurate Sliding Diamonds (Light Orange Theme)
+   Faithful recreation of Lottie animation pgnUH0IDIF
+   ========================================================================== */
+
+:root {
+  --loader-orange-light: #FFBA7A;
+  --loader-orange-main: #FFA24A;
+  --loader-orange-dark: #F77F24;
+  --loader-orange-glow: rgba(255, 162, 74, 0.45);
+  --loader-orange-subtle: rgba(255, 162, 74, 0.12);
+  --loader-ease: cubic-bezier(0.33, 0, 0.67, 1);
+  --loader-duration: 1.4s;
+}
+
+/* --------------------------------------------------------------------------
+   8-step Periodic Sliding Keyframes (80 frames @ 60fps = 1.333s)
+   Spot 0: (+118.4px, +118.4px)  [Bottom-Right]
+   Spot 1: (0px, 0px)            [Center]
+   Spot 2: (-118.4px, +118.4px) [Bottom-Left]
+   Spot 3: (-236.8px, 0px)       [Left]
+   Spot 4: (-118.4px, -118.4px) [Top-Left]
+   Spot 5: (0px, -236.8px)       [Top]
+   Spot 6: (+118.4px, -118.4px) [Top-Right]
+   Spot 7: (+236.8px, 0px)       [Right]
+   -------------------------------------------------------------------------- */
+
+@keyframes lottie-slide-b2 {
+  0% {
+    transform: translate(118.4px, 118.4px);
+    animation-timing-function: var(--loader-ease);
+  }
+  12.5%, 87.5% {
+    transform: translate(0px, 0px);
+    animation-timing-function: var(--loader-ease);
+  }
+  100% {
+    transform: translate(-118.4px, 118.4px);
+  }
+}
+
+@keyframes lottie-slide-b3 {
+  0%, 12.5% {
+    transform: translate(236.8px, 0px);
+    animation-timing-function: var(--loader-ease);
+  }
+  25%, 100% {
+    transform: translate(118.4px, 118.4px);
+  }
+}
+
+@keyframes lottie-slide-m3 {
+  0%, 25% {
+    transform: translate(118.4px, -118.4px);
+    animation-timing-function: var(--loader-ease);
+  }
+  37.5%, 100% {
+    transform: translate(236.8px, 0px);
+  }
+}
+
+@keyframes lottie-slide-t3 {
+  0%, 37.5% {
+    transform: translate(0px, -236.8px);
+    animation-timing-function: var(--loader-ease);
+  }
+  50%, 100% {
+    transform: translate(118.4px, -118.4px);
+  }
+}
+
+@keyframes lottie-slide-t2 {
+  0%, 50% {
+    transform: translate(-118.4px, -118.4px);
+    animation-timing-function: var(--loader-ease);
+  }
+  62.5%, 100% {
+    transform: translate(0px, -236.8px);
+  }
+}
+
+@keyframes lottie-slide-t1 {
+  0%, 62.5% {
+    transform: translate(-236.8px, 0px);
+    animation-timing-function: var(--loader-ease);
+  }
+  75%, 100% {
+    transform: translate(-118.4px, -118.4px);
+  }
+}
+
+@keyframes lottie-slide-m1 {
+  0%, 75% {
+    transform: translate(-118.4px, 118.4px);
+    animation-timing-function: var(--loader-ease);
+  }
+  87.5%, 100% {
+    transform: translate(-236.8px, 0px);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Loader Elements Styling
+   -------------------------------------------------------------------------- */
+
+.global-loader-sq {
+  animation-duration: var(--loader-duration);
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.global-loader-sq-b2 { animation-name: lottie-slide-b2; }
+.global-loader-sq-b3 { animation-name: lottie-slide-b3; }
+.global-loader-sq-m3 { animation-name: lottie-slide-m3; }
+.global-loader-sq-t3 { animation-name: lottie-slide-t3; }
+.global-loader-sq-t2 { animation-name: lottie-slide-t2; }
+.global-loader-sq-t1 { animation-name: lottie-slide-t1; }
+.global-loader-sq-m1 { animation-name: lottie-slide-m1; }
+
+.global-loader-diamond {
+  rx: 17.3px;
+  ry: 17.3px;
+  filter: drop-shadow(0 4px 14px var(--loader-orange-glow));
+  transition: fill 0.3s ease;
+}
+
+/* Subtle ambient pulse behind diamonds */
+@keyframes global-loader-pulse {
+  0%, 100% {
+    transform: scale(0.92);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.85;
+  }
+}
+
+.global-loader-ambient-glow {
+  transform-origin: center center;
+  animation: global-loader-pulse 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   Full-Screen Modal / Overlay Container
+   -------------------------------------------------------------------------- */
+
+.global-loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 14, 20, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 24px;
+  animation: global-loader-fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+[data-theme='light'] .global-loader-overlay {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+@keyframes global-loader-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.global-loader-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 44px;
+  border-radius: 20px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  box-shadow: 0 20px 48px -8px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 162, 74, 0.15);
+  text-align: center;
+  max-width: 440px;
+  width: 90%;
+  position: relative;
+  overflow: hidden;
+}
+
+[data-theme='dark'] .global-loader-card {
+  background: #181b22;
+  border-color: #2d333f;
+  box-shadow: 0 24px 56px -8px rgba(0, 0, 0, 0.65), 0 0 32px rgba(255, 162, 74, 0.18);
+}
+
+.global-loader-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #FFBA7A, #FFA24A, #F77F24);
+}
+
+/* --------------------------------------------------------------------------
+   Inline / Section Container
+   -------------------------------------------------------------------------- */
+
+.global-loader-inline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  width: 100%;
+}
+
+.global-loader-title {
+  margin-top: 18px;
+  font-size: 0.96rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #111827);
+  letter-spacing: -0.01em;
+}
+
+.global-loader-subtext {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #6b7280);
+  max-width: 320px;
+  line-height: 1.45;
+}
+
+.global-loader-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: rgba(255, 162, 74, 0.12);
+  color: #E66A1F;
+  border: 1px solid rgba(255, 162, 74, 0.28);
+}
+
+[data-theme='dark'] .global-loader-badge {
+  background: rgba(255, 162, 74, 0.16);
+  color: #FFA24A;
+  border-color: rgba(255, 162, 74, 0.35);
+}
+

@@ -18,6 +18,7 @@ import {
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
+import { GlobalLoader } from '../components/common/GlobalLoader';
 import { apiClient } from '../api/client';
 import type { CompanyPolicy, FraudParameter, SectionSummary } from '../api/client';
 import { useTaskProgress } from '../context/TaskProgressContext';
@@ -786,9 +787,7 @@ export const AdminManagementView: React.FC = () => {
 
           {/* Policy Cards Grid */}
           {loadingPolicies ? (
-            <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-secondary)' }}>
-              Loading company policies from MySQL...
-            </div>
+            <GlobalLoader size="sm" text="Loading Company Policies" subtext="Querying policy thresholds from MySQL..." />
           ) : filteredPolicies.length === 0 ? (
             <Card>
               <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -1055,9 +1054,7 @@ export const AdminManagementView: React.FC = () => {
 
           {/* Parameters Table */}
           {loadingParameters ? (
-            <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-secondary)' }}>
-              Loading fraud detection parameters...
-            </div>
+            <GlobalLoader size="sm" text="Loading Detection Parameters" subtext="Retrieving risk scoring weights from database..." />
           ) : filteredParams.length === 0 ? (
             <Card>
               <div style={{ textAlign: 'center', padding: '40px' }}>

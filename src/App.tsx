@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
+import { LoadingProvider, useGlobalLoader } from './context/LoadingContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { LoginPage } from './views/LoginPage';
 import { LandingPage } from './views/LandingPage';
@@ -24,11 +25,12 @@ interface User {
   email: string;
 }
 
-export function App() {
+function AppInner() {
   const [page, setPage] = useState<Page>('landing');
   const [user, setUser] = useState<User | null>(null);
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const { showLoader, hideLoader } = useGlobalLoader();
 
   const handleLogin = (u: User) => {
     setUser(u);
@@ -64,29 +66,20 @@ export function App() {
 
   // ── PUBLIC: Landing page ──────────────────────────────────────────────────
   if (page === 'landing') {
-    return (
-      <ThemeProvider>
-        <LandingPage onGetStarted={() => setPage('login')} />
-      </ThemeProvider>
-    );
+    return <LandingPage onGetStarted={() => setPage('login')} />;
   }
 
   // ── PUBLIC: Login page ────────────────────────────────────────────────────
   if (page === 'login') {
-    return (
-      <ThemeProvider>
-        <LoginPage onLogin={handleLogin} onBack={() => setPage('landing')} />
-      </ThemeProvider>
-    );
+    return <LoginPage onLogin={handleLogin} onBack={() => setPage('landing')} />;
   }
 
   // ── PRIVATE: Authenticated app with sidebar ───────────────────────────────
   const activeNavTab = currentTab === 'casedetail' ? 'queue' : currentTab;
 
   return (
-    <ThemeProvider>
-      <TaskProgressProvider onNavigate={handleNavigate}>
-        <div
+    <TaskProgressProvider onNavigate={handleNavigate}>
+      <div
         style={{
           display: 'flex',
           height: '100vh',
@@ -150,48 +143,102 @@ export function App() {
               </span>
             </div>
 
-            {/* User info pill */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '6px 14px',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'var(--color-input-background)',
-                border: '1px solid var(--color-border)',
-                fontSize: '0.82rem',
-              }}
-            >
-              <div
+            {/* Right side controls: Global Loader preview + user pill */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              {/* Interactive preview trigger for light-orange sliding diamond loader */}
+              <button
+                type="button"
+                onClick={() => {
+                  showLoader(
+                    'Multi-Modal Fraud Engine Processing...',
+                    'Reconciling transaction graph clusters & computing anomaly vector distance...',
+                    'Zero-Mock Engine'
+                  );
+                  setTimeout(() => {
+                    hideLoader();
+                  }, 3000);
+                }}
                 style={{
-                  width: '26px',
-                  height: '26px',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--color-primary)',
-                  color: 'white',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.65rem',
-                  fontWeight: 700,
-                  flexShrink: 0,
+                  gap: '8px',
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-full)',
+                  backgroundColor: 'rgba(255, 162, 74, 0.12)',
+                  border: '1px solid rgba(255, 162, 74, 0.35)',
+                  color: 'var(--color-primary, #FF5A14)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
                 }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 162, 74, 0.22)';
+                  e.currentTarget.style.borderColor = '#FFA24A';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 162, 74, 0.12)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 162, 74, 0.35)';
+                }}
+                title="Preview Global Loader (Lottie sliding diamond animation in light orange)"
               >
-                {user!.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
-              </div>
-              <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                {user!.name}
-              </span>
-              <span
+                <span
+                  style={{
+                    width: '9px',
+                    height: '9px',
+                    transform: 'rotate(-45deg)',
+                    backgroundColor: '#FFA24A',
+                    borderRadius: '2px',
+                    display: 'inline-block',
+                    boxShadow: '0 0 8px rgba(255, 162, 74, 0.65)',
+                  }}
+                />
+                <span>Test Global Loader</span>
+              </button>
+
+              {/* User info pill */}
+              <div
                 style={{
-                  fontSize: '0.7rem',
-                  color: 'var(--color-text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-full)',
+                  backgroundColor: 'var(--color-input-background)',
+                  border: '1px solid var(--color-border)',
+                  fontSize: '0.82rem',
                 }}
-                className="topbar-role"
               >
-                · {user!.role}
-              </span>
+                <div
+                  style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--color-primary)',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}
+                >
+                  {user!.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+                </div>
+                <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  {user!.name}
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    color: 'var(--color-text-secondary)',
+                  }}
+                  className="topbar-role"
+                >
+                  · {user!.role}
+                </span>
+              </div>
             </div>
           </header>
 
@@ -269,15 +316,24 @@ export function App() {
         </div>
       </div>
 
-        {/* Global Floating Task Progress Dock at Bottom-Right */}
-        <GlobalTaskProgressDock />
+      {/* Global Floating Task Progress Dock at Bottom-Right */}
+      <GlobalTaskProgressDock />
 
-        <style>{`
-          @media (min-width: 768px) {
-            .topbar-role { display: inline !important; }
-          }
-        `}</style>
-      </TaskProgressProvider>
+      <style>{`
+        @media (min-width: 768px) {
+          .topbar-role { display: inline !important; }
+        }
+      `}</style>
+    </TaskProgressProvider>
+  );
+}
+
+export function App() {
+  return (
+    <ThemeProvider>
+      <LoadingProvider>
+        <AppInner />
+      </LoadingProvider>
     </ThemeProvider>
   );
 }

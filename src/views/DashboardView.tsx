@@ -4,6 +4,7 @@ import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { EmptyState } from '../components/common/EmptyState';
+import { GlobalLoader } from '../components/common/GlobalLoader';
 import { apiClient } from '../api/client';
 import type { DashboardSummary } from '../api/client';
 import { formatTimeToIST } from '../utils/dateUtils';
@@ -45,6 +46,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             Real-time persisted metrics gathered from MySQL database tables.
           </p>
         </div>
+
         <div style={{ display: 'flex', gap: '10px' }}>
           <Button variant="secondary" size="sm" onClick={fetchSummary} icon={<RefreshCw size={14} />}>
             Refresh Metrics
@@ -72,9 +74,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       )}
 
       {loading ? (
-        <div style={{ padding: '64px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-          Computing persisted metrics from backend database...
-        </div>
+        <GlobalLoader
+          size="lg"
+          text="Computing Persisted Fraud Analytics"
+          subtext="Fetching live investigation metrics, risk clusters, and database state..."
+          badge="Live DB Sync"
+        />
       ) : data?.is_empty ? (
         <EmptyState
           title="No Investigations Found"
