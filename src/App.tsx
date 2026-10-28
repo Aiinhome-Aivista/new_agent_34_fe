@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
-import { LoadingProvider, useGlobalLoader } from './context/LoadingContext';
+import { LoadingProvider /*, useGlobalLoader */ } from './context/LoadingContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { LoginPage } from './views/LoginPage';
 import { LandingPage } from './views/LandingPage';
@@ -30,7 +30,7 @@ function AppInner() {
   const [user, setUser] = useState<User | null>(null);
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
-  const { showLoader, hideLoader } = useGlobalLoader();
+  // const { showLoader, hideLoader } = useGlobalLoader();
 
   const handleLogin = (u: User) => {
     setUser(u);
@@ -145,57 +145,6 @@ function AppInner() {
 
             {/* Right side controls: Global Loader preview + user pill */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              {/* Interactive preview trigger for light-orange sliding diamond loader */}
-              <button
-                type="button"
-                onClick={() => {
-                  showLoader(
-                    'Multi-Modal Fraud Engine Processing...',
-                    'Reconciling transaction graph clusters & computing anomaly vector distance...',
-                    'Zero-Mock Engine'
-                  );
-                  setTimeout(() => {
-                    hideLoader();
-                  }, 3000);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 14px',
-                  borderRadius: 'var(--radius-full)',
-                  backgroundColor: 'rgba(255, 162, 74, 0.12)',
-                  border: '1px solid rgba(255, 162, 74, 0.35)',
-                  color: 'var(--color-primary, #FF5A14)',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 162, 74, 0.22)';
-                  e.currentTarget.style.borderColor = '#FFA24A';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 162, 74, 0.12)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 162, 74, 0.35)';
-                }}
-                title="Preview Global Loader (Lottie sliding diamond animation in light orange)"
-              >
-                <span
-                  style={{
-                    width: '9px',
-                    height: '9px',
-                    transform: 'rotate(-45deg)',
-                    backgroundColor: '#FFA24A',
-                    borderRadius: '2px',
-                    display: 'inline-block',
-                    boxShadow: '0 0 8px rgba(255, 162, 74, 0.65)',
-                  }}
-                />
-                <span>Test Global Loader</span>
-              </button>
-
               {/* User info pill */}
               <div
                 style={{
