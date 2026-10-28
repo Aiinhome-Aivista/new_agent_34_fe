@@ -312,7 +312,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   <ArrowRight size={18} />
                 </button>
 
-                <a
+                {/* <a
                   href="http://localhost:5000/api/docs"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -336,7 +336,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 >
                   <BookOpen size={16} />
                   View API Docs
-                </a>
+                </a> */}
               </div>
 
               {/* Tech stack pills */}

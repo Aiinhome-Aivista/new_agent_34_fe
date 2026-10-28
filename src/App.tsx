@@ -9,7 +9,7 @@ import { QueueView } from './views/QueueView';
 import { CaseDetailView } from './views/CaseDetailView';
 import { ActionHistoryView } from './views/ActionHistoryView';
 // import { IntegrationsView } from './views/IntegrationsView';
-import { SimulatorView } from './views/SimulatorView';
+// import { SimulatorView } from './views/SimulatorView';
 import { AdminManagementView } from './views/AdminManagementView';
 import { BatchIngestView } from './views/BatchIngestView';
 import { TaskProgressProvider } from './context/TaskProgressContext';
@@ -270,14 +270,14 @@ function AppInner() {
             )}
             {currentTab === 'actions' && <ActionHistoryView />}
             {/* {currentTab === 'integrations' && <IntegrationsView />} */}
-            {currentTab === 'simulator' && (
+            {/* {currentTab === 'simulator' && (
               <SimulatorView
                 onNavigateToQueue={() => {
                   setSelectedCaseId(null);
                   setCurrentTab('queue');
                 }}
               />
-            )}
+            )} */}
             {currentTab === 'batch-ingest' && (
               <BatchIngestView
                 onNavigateToCase={handleSelectCase}
@@ -346,7 +346,7 @@ function getPageTitle(tab: string): string {
     'batch-ingest': 'Batch Excel/CSV Ingestion & Live Auto-Trigger',
     actions: 'Action History',
     integrations: 'Infrastructure & Integrations',
-    simulator: 'Concurrency Simulator',
+    // simulator: 'Concurrency Simulator',
     admin: 'Policy & Parameter Engine',
   };
   return titles[tab] || 'FraudOps AI';
@@ -360,7 +360,7 @@ function getPageSubtitle(tab: string, caseId: string | null): string {
     'batch-ingest': 'Upload transaction files, monitor batch ingestion, and verify autonomous trigger execution',
     actions: 'Full audit trail of analyst decisions',
     integrations: 'System health & backend services',
-    simulator: 'Stress-test ingestion pipeline',
+    // simulator: 'Stress-test ingestion pipeline',
     admin: 'Manage organizational SOPs, detection parameters, and private knowledge base',
   };
   return subs[tab] || '';

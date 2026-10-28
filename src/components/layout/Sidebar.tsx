@@ -5,7 +5,7 @@ import {
   Layers,
   Activity,
   // Database,
-  PlayCircle,
+  // PlayCircle,
   Sliders,
   FileSpreadsheet,
   ChevronLeft,
@@ -14,7 +14,7 @@ import {
   Sun,
   Moon,
   Contrast,
-  BookOpen,
+  // BookOpen,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -40,7 +40,7 @@ const getNavItems = (role?: string): NavItem[] => {
     { id: 'batch-ingest', label: 'Batch Ingestion', icon: FileSpreadsheet, description: 'Excel/CSV auto-trigger' },
     { id: 'actions', label: 'Action History', icon: Activity, description: 'Audit trail & past decisions' },
     // { id: 'integrations', label: 'Infrastructure', icon: Database, description: 'System health & integrations' },
-    { id: 'simulator', label: 'Simulator', icon: PlayCircle, description: 'Concurrency stress testing' },
+    // { id: 'simulator', label: 'Simulator', icon: PlayCircle, description: 'Concurrency stress testing' },
   ];
 
   // Admin persona gets dedicated Policies & Parameters & Knowledge management
@@ -282,7 +282,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, user,
           );
         })}
 
-        {/* Swagger link */}
+        {/* Swagger link
         <a
           href="http://localhost:5000/api/docs"
           target="_blank"
@@ -314,7 +314,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, user,
         >
           <BookOpen size={18} style={{ flexShrink: 0 }} />
           {!collapsed && <span style={{ whiteSpace: 'nowrap' }}>Swagger API</span>}
-        </a>
+        </a> */}
       </nav>
 
       {/* Bottom section: user profile + controls */}

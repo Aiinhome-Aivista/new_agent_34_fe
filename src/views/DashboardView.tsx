@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Layers, AlertTriangle, ShieldCheck, Clock, RefreshCw, ArrowUpRight } from 'lucide-react';
+import { Layers, AlertTriangle, ShieldCheck, Clock, RefreshCw /*, ArrowUpRight */ } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
@@ -13,7 +13,7 @@ interface DashboardViewProps {
   onNavigate: (tab: string, caseId?: string) => void;
 }
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
+export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate: _onNavigate }) => {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,9 +51,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           <Button variant="secondary" size="sm" onClick={fetchSummary} icon={<RefreshCw size={14} />}>
             Refresh Metrics
           </Button>
-          <Button size="sm" onClick={() => onNavigate('simulator')} icon={<ArrowUpRight size={14} />}>
+          {/* <Button size="sm" onClick={() => onNavigate('simulator')} icon={<ArrowUpRight size={14} />}>
             Concurrency Simulator
-          </Button>
+          </Button> */}
         </div>
       </div>
 
@@ -84,11 +84,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <EmptyState
           title="No Investigations Found"
           description="The database has zero active investigation cases. Trigger an investigation signal or launch a concurrent simulation to populate real records."
-          action={
+          /* action={
             <Button onClick={() => onNavigate('simulator')}>
               Launch Concurrency Signal Ingestion
             </Button>
-          }
+          } */
         />
       ) : (
         <>
