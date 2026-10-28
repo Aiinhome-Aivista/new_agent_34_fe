@@ -7,31 +7,31 @@ import {
   Edit2,
   Trash2,
   CheckCircle,
-  AlertTriangle,
   RefreshCw,
   Search,
-  Filter,
   Layers,
   X,
-  Lock,
-  Zap,
-  Globe,
-  Database,
-  ArrowRight,
   UploadCloud,
   BookOpen,
   FileCheck,
-  Check,
-  Sparkles,
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
-import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { apiClient } from '../api/client';
 import type { CompanyPolicy, FraudParameter, SectionSummary } from '../api/client';
+import { useTaskProgress } from '../context/TaskProgressContext';
 
 export const AdminManagementView: React.FC = () => {
+  const {
+    activeTask,
+    startDocumentUpload,
+    latestDocResult,
+  } = useTaskProgress();
+
+  const isDocUploading = activeTask?.type === 'document_upload' && activeTask?.status === 'running';
+  const displayedDocResult = (activeTask?.type === 'document_upload' && activeTask?.result) || latestDocResult;
+
   const [activeTab, setActiveTab] = useState<'policies' | 'parameters' | 'knowledge'>('policies');
 
   // Policies State
@@ -55,8 +55,6 @@ export const AdminManagementView: React.FC = () => {
   } | null>(null);
   const [loadingKnowledge, setLoadingKnowledge] = useState(false);
   const [reindexing, setReindexing] = useState(false);
-  const [uploadingDoc, setUploadingDoc] = useState(false);
-  const [docUploadResult, setDocUploadResult] = useState<any | null>(null);
   const [docFile, setDocFile] = useState<File | null>(null);
   const [docForm, setDocForm] = useState({
     document_key: '',
@@ -172,24 +170,19 @@ export const AdminManagementView: React.FC = () => {
       return;
     }
 
-    setUploadingDoc(true);
-    setDocUploadResult(null);
-
-    const formData = new FormData();
-    formData.append('file', docFile);
-    formData.append('document_key', docForm.document_key.trim().toUpperCase());
-    formData.append('title', docForm.title.trim());
-    formData.append('category', docForm.category);
-    formData.append('action_impact', docForm.action_impact);
-    formData.append('version', docForm.version.trim() || '1.0');
-    formData.append('description', docForm.description.trim());
-
     try {
-      const res = await apiClient.uploadKnowledgeDocument(formData);
-      setDocUploadResult(res);
+      const res = await startDocumentUpload(docFile, {
+        document_key: docForm.document_key,
+        title: docForm.title,
+        category: docForm.category,
+        action_impact: docForm.action_impact,
+        version: docForm.version,
+        description: docForm.description,
+      });
+
       setFeedback({
         type: 'success',
-        message: `Uploaded and indexed "${res.title}" (${res.chunks_indexed} vector chunks) into ChromaDB!`,
+        message: `Uploaded and indexed "${res.title || docForm.title}" (${res.chunks_indexed || 0} vector chunks) into ChromaDB!`,
       });
       setDocFile(null);
       setDocForm({
@@ -204,8 +197,6 @@ export const AdminManagementView: React.FC = () => {
       loadPolicies();
     } catch (err: any) {
       alert(err.message || 'Document upload & indexing failed');
-    } finally {
-      setUploadingDoc(false);
     }
   };
 
@@ -1315,15 +1306,26 @@ export const AdminManagementView: React.FC = () => {
                   </div>
                 </div>
 
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleReindexKnowledge}
-                  disabled={reindexing}
-                  icon={<RefreshCw size={14} className={reindexing ? 'animate-spin' : ''} />}
-                >
-                  {reindexing ? 'Re-Indexing Vectors...' : 'Re-Index All SOPs'}
-                </Button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={loadKnowledgeStatus}
+                    disabled={loadingKnowledge}
+                    icon={<RefreshCw size={14} className={loadingKnowledge ? 'animate-spin' : ''} />}
+                  >
+                    Refresh
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleReindexKnowledge}
+                    disabled={reindexing}
+                    icon={<RefreshCw size={14} className={reindexing ? 'animate-spin' : ''} />}
+                  >
+                    {reindexing ? 'Re-Indexing Vectors...' : 'Re-Index All SOPs'}
+                  </Button>
+                </div>
               </div>
             </div>
           </Card>
@@ -1509,20 +1511,54 @@ export const AdminManagementView: React.FC = () => {
                   />
                 </div>
 
+                {isDocUploading && activeTask && (
+                  <div
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'rgba(255, 90, 20, 0.08)',
+                      border: '1px solid var(--color-primary)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                      marginTop: '4px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.85rem', color: 'var(--color-primary)' }}>
+                        <RefreshCw size={14} className="animate-spin" />
+                        <span>Extracting &amp; Vectorizing Document Live</span>
+                      </div>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                        {activeTask.current} / {activeTask.total || '?'} chunks ({activeTask.progress}%)
+                      </span>
+                    </div>
+                    <div style={{ width: '100%', height: '6px', borderRadius: 'var(--radius-full)', backgroundColor: 'var(--color-border)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${activeTask.progress}%`, backgroundColor: 'var(--color-primary)', transition: 'width 0.35s ease' }} />
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>{activeTask.message}</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>Floating dock active at bottom-right</span>
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                   <Button
                     variant="primary"
                     type="submit"
-                    disabled={uploadingDoc || !docFile}
-                    icon={uploadingDoc ? <RefreshCw size={14} className="animate-spin" /> : <FileCheck size={15} />}
+                    disabled={isDocUploading || !docFile}
+                    icon={isDocUploading ? <RefreshCw size={14} className="animate-spin" /> : <FileCheck size={15} />}
                   >
-                    {uploadingDoc ? 'Extracting & Indexing Vectors...' : 'Upload & Vectorize Document'}
+                    {isDocUploading
+                      ? `Vectorizing ${activeTask?.current || 0}/${activeTask?.total || '?'} chunks (${activeTask?.progress || 0}%)...`
+                      : 'Upload & Vectorize Document'}
                   </Button>
                 </div>
               </form>
 
               {/* Upload Success Banner */}
-              {docUploadResult && (
+              {displayedDocResult && (
                 <div
                   style={{
                     marginTop: '20px',
@@ -1540,9 +1576,9 @@ export const AdminManagementView: React.FC = () => {
                     </span>
                   </div>
                   <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-                    <div><strong>Document Key:</strong> {docUploadResult.document_key} ({docUploadResult.title})</div>
-                    <div><strong>File:</strong> {docUploadResult.filename} ({docUploadResult.total_characters} characters extracted)</div>
-                    <div><strong>ChromaDB Vectors:</strong> {docUploadResult.chunks_indexed} semantic chunks embedded with <code>text-embedding-004</code></div>
+                    <div><strong>Document Key:</strong> {displayedDocResult.document_key} ({displayedDocResult.title})</div>
+                    <div><strong>File:</strong> {displayedDocResult.filename} ({displayedDocResult.total_characters} characters extracted)</div>
+                    <div><strong>ChromaDB Vectors:</strong> {displayedDocResult.chunks_indexed} semantic chunks embedded with <code>text-embedding-004</code></div>
                   </div>
                 </div>
               )}
