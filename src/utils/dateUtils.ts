@@ -1,6 +1,6 @@
 /**
  * Global Date & Time Formatting Utilities for FraudOps AI.
- * Converts any UTC, ISO, epoch timestamp, or Date representation into Indian Standard Time (IST / UTC+05:30).
+ * Explicitly converts any UTC, ISO, epoch timestamp, or Date representation into Indian Standard Time (IST / UTC+05:30).
  */
 
 export interface FormatISTOptions {
@@ -19,18 +19,38 @@ export interface FormatISTOptions {
 }
 
 /**
+ * Parses any incoming date representation strictly as UTC unless an explicit timezone offset is provided.
+ */
+function parseAsUTC(input: string | number | Date): Date {
+  if (input instanceof Date) {
+    return input;
+  }
+  if (typeof input === 'number') {
+    // If number is in seconds (10 digits), convert to ms
+    return new Date(input < 1e11 ? input * 1000 : input);
+  }
+  if (typeof input === 'string') {
+    let s = input.trim();
+    // Normalize SQL datetime string (e.g. "2026-10-28 07:02:27" -> "2026-10-28T07:02:27")
+    if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:/.test(s)) {
+      s = s.replace(/\s+/, 'T');
+    }
+    // If no timezone offset (no Z and no +/-HH:MM at the end), explicitly treat as UTC
+    if (!s.endsWith('Z') && !/[+-]\d{2}:?\d{2}$/.test(s)) {
+      s += 'Z';
+    }
+    return new Date(s);
+  }
+  return new Date(NaN);
+}
+
+/**
  * Global function to format any date/time into Indian Standard Time (IST, UTC+05:30).
- * Handles:
- * - UTC ISO strings with 'Z' (e.g. '2026-10-28T05:30:00Z')
- * - UTC ISO strings with offset (e.g. '2026-10-28T05:30:00+00:00')
- * - Naive ISO strings from backend / MySQL (e.g. '2026-10-28T11:00:00')
- * - Date instances (e.g. new Date())
- * - Epoch timestamps in milliseconds or seconds
- * - Null, undefined, empty strings
+ * Explicitly converts UTC database/API timestamps to IST (+5:30).
  *
  * @param input Date, string, number, null, or undefined
  * @param options Formatting options
- * @returns Formatted IST string, e.g. "28/10/2026, 11:00:00 am" or "11:00:00 am"
+ * @returns Formatted IST string, e.g. "28/10/2026, 12:32:27 pm" or "12:32:27 pm"
  */
 export function formatToIST(
   input: string | number | Date | null | undefined,
@@ -49,20 +69,7 @@ export function formatToIST(
     return fallback;
   }
 
-  let date: Date;
-
-  if (input instanceof Date) {
-    date = input;
-  } else if (typeof input === 'number') {
-    // If number is in seconds (10 digits), convert to ms
-    date = new Date(input < 1e11 ? input * 1000 : input);
-  } else if (typeof input === 'string') {
-    const trimmed = input.trim();
-    if (!trimmed) return fallback;
-    date = new Date(trimmed);
-  } else {
-    return fallback;
-  }
+  const date = parseAsUTC(input);
 
   if (isNaN(date.getTime())) {
     return fallback;
@@ -106,7 +113,7 @@ export function formatToIST(
 }
 
 /**
- * Convenience helper to format time only into IST (e.g. "12:38:43 pm").
+ * Convenience helper to format time only into IST (e.g. "12:32:27 pm").
  */
 export function formatTimeToIST(
   input: string | number | Date | null | undefined,
@@ -116,7 +123,7 @@ export function formatTimeToIST(
 }
 
 /**
- * Convenience helper to format date only into IST (e.g. "26/10/2026").
+ * Convenience helper to format date only into IST (e.g. "28/10/2026").
  */
 export function formatDateToIST(
   input: string | number | Date | null | undefined
