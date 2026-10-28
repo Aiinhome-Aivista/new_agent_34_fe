@@ -4,7 +4,7 @@ import {
   BarChart3,
   Layers,
   Activity,
-  Database,
+  // Database,
   PlayCircle,
   Sliders,
   FileSpreadsheet,
@@ -31,7 +31,7 @@ const getNavItems = (role?: string) => {
     { id: 'queue', label: 'Case Queue', icon: Layers, description: 'Active investigation cases' },
     { id: 'batch-ingest', label: 'Batch Ingestion', icon: FileSpreadsheet, description: 'Excel/CSV auto-trigger' },
     { id: 'actions', label: 'Action History', icon: Activity, description: 'Audit trail & past decisions' },
-    { id: 'integrations', label: 'Infrastructure', icon: Database, description: 'System health & integrations' },
+    // { id: 'integrations', label: 'Infrastructure', icon: Database, description: 'System health & integrations' },
     { id: 'simulator', label: 'Simulator', icon: PlayCircle, description: 'Concurrency stress testing' },
   ];
 

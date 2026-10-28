@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Moon, Sun, Contrast, Menu, X, Activity, Layers, PlayCircle, BarChart3, Database, BookOpen } from 'lucide-react';
+import { Shield, Moon, Sun, Contrast, Menu, X, Activity, Layers, PlayCircle, BarChart3, /* Database, */ BookOpen } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
 interface NavbarProps {
@@ -16,7 +16,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
     { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={16} /> },
     { id: 'queue', label: 'Case Queue', icon: <Layers size={16} /> },
     { id: 'actions', label: 'Action History', icon: <Activity size={16} /> },
-    { id: 'integrations', label: 'Infrastructure', icon: <Database size={16} /> },
+    // { id: 'integrations', label: 'Infrastructure', icon: <Database size={16} /> },
     { id: 'simulator', label: 'Concurrency Simulator', icon: <PlayCircle size={16} /> },
   ];
 

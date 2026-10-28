@@ -7,7 +7,7 @@ import { DashboardView } from './views/DashboardView';
 import { QueueView } from './views/QueueView';
 import { CaseDetailView } from './views/CaseDetailView';
 import { ActionHistoryView } from './views/ActionHistoryView';
-import { IntegrationsView } from './views/IntegrationsView';
+// import { IntegrationsView } from './views/IntegrationsView';
 import { SimulatorView } from './views/SimulatorView';
 import { AdminManagementView } from './views/AdminManagementView';
 import { BatchIngestView } from './views/BatchIngestView';
@@ -219,7 +219,7 @@ export function App() {
               />
             )}
             {currentTab === 'actions' && <ActionHistoryView />}
-            {currentTab === 'integrations' && <IntegrationsView />}
+            {/* {currentTab === 'integrations' && <IntegrationsView />} */}
             {currentTab === 'simulator' && (
               <SimulatorView
                 onNavigateToQueue={() => {
