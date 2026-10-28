@@ -213,12 +213,42 @@ export const apiClient = {
     const url = caseId ? `${API_BASE}/audit?case_id=${caseId}` : `${API_BASE}/audit`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('Failed to fetch audit events');
-    return res.json();
+    const data = await res.json();
+    return Array.isArray(data) ? data : (data.items || []);
   },
 
   async getIntegrationsStatus(): Promise<{ integrations: IntegrationItem[] }> {
     const res = await fetch(`${API_BASE}/integrations/status`);
     if (!res.ok) throw new Error('Failed to fetch integration statuses');
+    return res.json();
+  },
+
+  async uploadEvidence(caseId: string, formData: FormData): Promise<{
+    status: string;
+    message: string;
+    evidence: any;
+  }> {
+    const res = await fetch(`${API_BASE}/investigations/${caseId}/evidence-upload`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to upload evidence document');
+    }
+    return res.json();
+  },
+
+  async verifyEvidence(caseId: string, evidenceId: string, data: { status: string; notes?: string; analyst_name?: string }): Promise<any> {
+    const res = await fetch(`${API_BASE}/investigations/${caseId}/evidence/${evidenceId}/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to verify evidence');
+    }
     return res.json();
   },
 

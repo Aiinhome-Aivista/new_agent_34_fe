@@ -9,6 +9,10 @@ import {
   ArrowRight,
   Cpu,
   Layers,
+  Database,
+  ShieldCheck,
+  Search,
+  UserCheck
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
@@ -89,6 +93,15 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
     window.open(apiClient.getSampleTemplateUrl(), '_blank');
   };
 
+  // Sample records preview for the 3-4 column specification
+  const sampleRows = [
+    { id: 'USR_LEGIT_101', name: 'Rahul Sharma', email: 'rahul.sharma@example.com', reason: 'Routine retail transaction risk audit', status: 'VERIFIED' },
+    { id: 'USR_SYBIL_RING_01', name: 'Sameer Khan', email: 'sameer.khan@email.com', reason: 'Suspected ATO & emulator cluster', status: 'PENDING' },
+    { id: 'USR_UNVERIFIED_103', name: 'Rohan Mehta', email: 'rohan.unverified@tempmail.org', reason: 'High-value INR 1,85,000 transfer without KYC', status: 'PENDING' },
+    { id: 'USR_CHARGEBACK_104', name: 'Anita Deshmukh', email: 'anita.disputes@gmail.com', reason: 'Multiple active dispute chargebacks recorded', status: 'VERIFIED' },
+    { id: 'USR_DORMANT_105', name: 'Priya Nair', email: 'priya.nair@example.com', reason: 'Sudden reactivation with high velocity', status: 'VERIFIED' },
+  ];
+
   return (
     <div style={{ width: '100%', padding: '32px 36px' }} className="animate-fade-in">
       {/* Header */}
@@ -119,7 +132,7 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
               <FileSpreadsheet size={18} />
             </div>
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>
-              Batch Ingestion &amp; Auto-Trigger Engine
+              Batch Ingestion &amp; Master Search Gateway
             </h1>
             <span
               style={{
@@ -132,11 +145,11 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
                 border: '1px solid rgba(16, 185, 129, 0.3)',
               }}
             >
-              LIVE PIPELINE
+              3–4 COLUMN SPECIFICATION
             </span>
           </div>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.92rem', margin: 0, maxWidth: '800px' }}>
-            Ingest multiple user payment records via Excel or CSV. The agent automatically triggers evidence collection, policy checks, graph correlation, and risk determination in real-time.
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.92rem', margin: 0, maxWidth: '850px' }}>
+            Upload simplified 3–4 column Excel/CSV lists (<code>user_id</code>, <code>user_name</code>, <code>email</code>, <code>reason</code>). The backend strictly verifies identities against MySQL master tables (<code>m_users</code>, <code>m_orders</code>, <code>m_payments</code>, <code>m_chargebacks</code>) and dispatches real-time forensic investigations.
           </p>
         </div>
 
@@ -147,201 +160,95 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
             onClick={handleDownloadTemplate}
             icon={<Download size={14} />}
           >
-            Download Sample CSV Template
+            Download 4-Column Template
           </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={fetchPollerStatus}
-            icon={<RefreshCw size={14} className={loadingStatus ? 'animate-spin' : ''} />}
-          >
-            Refresh Poller
-          </Button>
+          {onNavigateToQueue && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onNavigateToQueue}
+              icon={<ArrowRight size={14} />}
+            >
+              Case Queue
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Auto-Trigger Poller Status Banner */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '16px',
-          marginBottom: '28px',
-        }}
-      >
-        <div
-          style={{
-            padding: '18px',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-          }}
-        >
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              backgroundColor: pollerStatus?.is_running ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-              color: pollerStatus?.is_running ? '#10B981' : '#EF4444',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Clock size={20} />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>
-                {pollerStatus?.is_running ? 'Active Background Poller' : 'Poller Standby'}
-              </span>
-            </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-              Interval: <strong>{pollerStatus?.poll_interval_seconds || 30}s</strong> · Last Polled: <strong>{formatToIST(pollerStatus?.last_polled_at, { fallback: 'Standby / Just now' })}</strong>
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            padding: '18px',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-          }}
-        >
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              backgroundColor: 'rgba(59, 130, 246, 0.15)',
-              color: '#3B82F6',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Cpu size={20} />
-          </div>
-          <div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>Auto-Trigger Ingestion</div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-              Watch folder: <code style={{ fontSize: '0.72rem' }}>./data/incoming_excel</code>
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            padding: '18px',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-          }}
-        >
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              backgroundColor: 'rgba(255, 90, 20, 0.15)',
-              color: 'var(--color-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Layers size={20} />
-          </div>
-          <div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 800 }}>
-              {pollerStatus?.total_auto_ingested || 0} Records
-            </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
-              Total Auto-Processed &amp; Saved
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Grid: Upload & Instructions */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px', marginBottom: '28px' }}>
-        {/* Upload Card */}
-        <Card title="Upload Excel / CSV Batch File">
-          <form onSubmit={handleUploadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Main Grid: Upload & 4-Column Specs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px', marginBottom: '32px' }}>
+        {/* Upload Form Card */}
+        <Card title="Upload Batch File (.xlsx / .csv)">
+          <form onSubmit={handleUploadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             <div
               style={{
                 border: '2px dashed var(--color-border)',
                 borderRadius: 'var(--radius-md)',
-                padding: '36px 20px',
+                padding: '28px',
                 textAlign: 'center',
-                backgroundColor: 'var(--color-input-background)',
+                backgroundColor: selectedFile ? 'rgba(16, 185, 129, 0.05)' : 'var(--color-input-background)',
+                transition: 'border-color var(--transition-fast)',
                 cursor: 'pointer',
-                transition: 'all var(--transition-fast)',
               }}
               onClick={() => document.getElementById('batch-file-input')?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                  setSelectedFile(e.dataTransfer.files[0]);
-                }
-              }}
             >
               <input
                 id="batch-file-input"
                 type="file"
                 accept=".xlsx,.xls,.csv"
-                onChange={handleFileChange}
                 style={{ display: 'none' }}
+                onChange={handleFileChange}
               />
               <div
                 style={{
-                  width: '48px',
-                  height: '48px',
+                  width: '44px',
+                  height: '44px',
                   borderRadius: '12px',
                   backgroundColor: 'rgba(255, 90, 20, 0.1)',
                   color: 'var(--color-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  margin: '0 auto 12px auto',
+                  margin: '0 auto 12px',
                 }}
               >
                 <UploadCloud size={24} />
               </div>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '4px' }}>
-                {selectedFile ? selectedFile.name : 'Click to select or drag & drop file here'}
-              </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
-                Supports Microsoft Excel (<code>.xlsx</code>) and comma-separated (<code>.csv</code>)
-              </div>
+              {selectedFile ? (
+                <div>
+                  <div style={{ fontWeight: 700, color: 'var(--color-text-primary)', fontSize: '0.95rem' }}>
+                    {selectedFile.name}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                    {(selectedFile.size / 1024).toFixed(1)} KB · Click to replace file
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '0.92rem' }}>
+                    Drop Excel or CSV file here, or click to browse
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                    Requires <code>user_id</code> &amp; <code>user_name</code> (3–4 columns max)
+                  </div>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <input
                 type="checkbox"
-                id="auto-investigate-toggle"
+                id="auto-inv"
                 checked={autoInvestigate}
                 onChange={(e) => setAutoInvestigate(e.target.checked)}
-                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
               />
-              <label htmlFor="auto-investigate-toggle" style={{ fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
-                Auto-trigger Agent Investigation immediately for all rows
+              <label htmlFor="auto-inv" style={{ fontSize: '0.85rem', color: 'var(--color-text-primary)', cursor: 'pointer' }}>
+                Auto-trigger forensic agent and evaluate master evidence immediately
               </label>
             </div>
 
+            {/* Ingestion Progress */}
             {isBatchRunning && activeTask && (
               <div
                 style={{
@@ -357,7 +264,7 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.85rem', color: '#10B981' }}>
                     <RefreshCw size={14} className="animate-spin" />
-                    <span>Processing Batch Ingestion Live</span>
+                    <span>Processing Batch &amp; Querying Master Tables...</span>
                   </div>
                   <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
                     {activeTask.current} / {activeTask.total || '?'} records ({activeTask.progress}%)
@@ -368,7 +275,6 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>{activeTask.message}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>Floating dock active at bottom-right</span>
                 </div>
               </div>
             )}
@@ -395,35 +301,90 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
               icon={isBatchRunning ? <RefreshCw size={16} className="animate-spin" /> : <UploadCloud size={16} />}
             >
               {isBatchRunning
-                ? `Ingesting ${activeTask?.current || 0}/${activeTask?.total || '?'} records (${activeTask?.progress || 0}%)...`
-                : 'Ingest File & Trigger Agent'}
+                ? `Ingesting ${activeTask?.current || 0}/${activeTask?.total || '?'} records...`
+                : 'Ingest File & Verify Master Records'}
             </Button>
           </form>
         </Card>
 
-        {/* Guidelines Card */}
-        <Card title="Batch File Specification & Parameters">
-          <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: '12px', lineHeight: 1.5 }}>
+        {/* 3-4 Column Specification Guide */}
+        <Card title="Simplified 3–4 Column Specification">
+          <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: '14px', lineHeight: 1.5 }}>
             <p style={{ margin: 0 }}>
-              The ingestion engine synchronizes the 4 required domain tables (<strong>users</strong>, <strong>orders</strong>, <strong>payments</strong>, <strong>chargebacks</strong>) and immediately evaluates each user against active detection parameters:
+              The ingestion pipeline expects strictly 3 to 4 headers. The engine uses <code>user_id</code> to query the master data layer (<code>m_users</code>, <code>m_orders</code>, <code>m_payments</code>, <code>m_chargebacks</code>):
             </p>
 
-            <ul style={{ paddingLeft: '20px', margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <li><strong>KYC Verification:</strong> <code>kyc_status=VERIFIED</code> marks legitimate profile.</li>
-              <li><strong>Velocity &amp; Failures:</strong> <code>payment_status=FAILED</code> triggers decline audit.</li>
-              <li><strong>High-Value Limit:</strong> Transactions &gt; <code>50,000</code> escalate to priority.</li>
-              <li><strong>Device Footprints:</strong> Matching <code>device_id</code> across accounts triggers Sybil ring check.</li>
-              <li><strong>Dispute Rates:</strong> <code>dispute_count &gt; 0</code> creates chargeback records and flags <code>SUSPICIOUS</code>.</li>
-            </ul>
-
-            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--color-input-background)', border: '1px solid var(--color-border)', marginTop: '4px' }}>
-              <div style={{ fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CheckCircle size={14} color="#10B981" /> Ready-to-Test Template Available
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--color-input-background)', border: '1px solid var(--color-border)' }}>
+                <div style={{ fontWeight: 700, color: 'var(--color-text-primary)', fontSize: '0.82rem' }}>1. user_id (Mandatory)</div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                  Unique customer ID (e.g. <code>USR_LEGIT_101</code>)
+                </div>
               </div>
-              <p style={{ margin: 0, fontSize: '0.78rem' }}>
-                Click <strong>"Download Sample CSV Template"</strong> above to get a pre-populated file with 5 realistic test cases (Normal user, card velocity fraud, KYC unverified fraud, shared device ring, dispute spike).
+
+              <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--color-input-background)', border: '1px solid var(--color-border)' }}>
+                <div style={{ fontWeight: 700, color: 'var(--color-text-primary)', fontSize: '0.82rem' }}>2. user_name (Mandatory)</div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                  Target user display name (e.g. <code>Rahul Sharma</code>)
+                </div>
+              </div>
+
+              <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--color-input-background)', border: '1px solid var(--color-border)' }}>
+                <div style={{ fontWeight: 700, color: 'var(--color-text-primary)', fontSize: '0.82rem' }}>3. email (Optional)</div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                  Secondary query key for <code>m_users</code> lookup
+                </div>
+              </div>
+
+              <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--color-input-background)', border: '1px solid var(--color-border)' }}>
+                <div style={{ fontWeight: 700, color: 'var(--color-text-primary)', fontSize: '0.82rem' }}>4. reason (Optional)</div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                  Trigger context for audit logs &amp; Policy RAG
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', backgroundColor: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              <div style={{ fontWeight: 700, color: '#10B981', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Database size={14} /> Master MySQL Integration Active
+              </div>
+              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
+                All 4 master tables (<code>m_users</code>, <code>m_orders</code>, <code>m_payments</code>, <code>m_chargebacks</code>) are indexed in the primary MySQL database. Seeding includes 11 realistic test personas ready to verify.
               </p>
             </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Visual Sample Preview Table */}
+      <div style={{ marginBottom: '32px' }}>
+        <Card title="Pre-Seeded Master Personas Ready for Ingestion">
+          <p style={{ fontSize: '0.84rem', color: 'var(--color-text-secondary)', margin: '0 0 16px 0' }}>
+            The sample template matches records present in the <code>m_users</code> master table:
+          </p>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--color-input-background)', borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', fontSize: '0.76rem', textTransform: 'uppercase' }}>
+                  <th style={{ padding: '10px 14px' }}>user_id</th>
+                  <th style={{ padding: '10px 14px' }}>user_name</th>
+                  <th style={{ padding: '10px 14px' }}>email</th>
+                  <th style={{ padding: '10px 14px' }}>reason</th>
+                  <th style={{ padding: '10px 14px' }}>Master KYC</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sampleRows.map((sr, idx) => (
+                  <tr key={idx} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <td style={{ padding: '10px 14px', fontFamily: 'var(--font-family-mono)', color: 'var(--color-primary)', fontWeight: 600 }}>{sr.id}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 600 }}>{sr.name}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--color-text-secondary)' }}>{sr.email}</td>
+                    <td style={{ padding: '10px 14px', color: 'var(--color-text-secondary)' }}>{sr.reason}</td>
+                    <td style={{ padding: '10px 14px' }}><Badge type={sr.status}>{sr.status}</Badge></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </Card>
       </div>
@@ -472,10 +433,10 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
                       }}
                     >
                       <th style={{ padding: '12px 14px' }}>Case ID</th>
-                      <th style={{ padding: '12px 14px' }}>Target User &amp; Tx</th>
+                      <th style={{ padding: '12px 14px' }}>Target User</th>
                       <th style={{ padding: '12px 14px' }}>Assessment</th>
                       <th style={{ padding: '12px 14px' }}>Recommended Action</th>
-                      <th style={{ padding: '12px 14px' }}>Agent Findings &amp; Rationale</th>
+                      <th style={{ padding: '12px 14px' }}>Agent Forensic Findings</th>
                       <th style={{ padding: '12px 14px', textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
@@ -504,9 +465,11 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
                         </td>
 
                         <td style={{ padding: '12px 14px' }}>
-                          <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{c.user_id}</div>
-                          <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
-                            Tx: <code>{c.transaction_id}</code>
+                          <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                            {c.user_name || c.user_id}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-family-mono)' }}>
+                            {c.user_id}
                           </div>
                         </td>
 
@@ -519,7 +482,7 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
                             style={{
                               fontWeight: 700,
                               fontSize: '0.82rem',
-                              color: c.recommendation.includes('BLOCK') ? '#EF4444' : 'var(--color-text-primary)',
+                              color: c.recommendation.includes('BLOCK') || c.recommendation.includes('LOCK') ? '#EF4444' : 'var(--color-text-primary)',
                             }}
                           >
                             {c.recommendation}
@@ -538,7 +501,7 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
                               onClick={() => onNavigateToCase(c.case_id)}
                               icon={<ArrowRight size={13} />}
                             >
-                              Inspect
+                              Inspect Case
                             </Button>
                           )}
                         </td>
