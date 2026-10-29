@@ -206,9 +206,9 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateToQueue 
           {isRunning ? (
             <GlobalLoader
               size="md"
-              text="Firing Concurrent Fraud Signals"
-              subtext={`Dispatching ${numRequests} signals with concurrency ${concurrency}...`}
-              badge="Live Stress Test"
+
+
+
             />
           ) : testStats ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-fade-in">

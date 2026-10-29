@@ -147,12 +147,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
   if (loading) {
     return (
       <div style={{ width: '100%', padding: '64px 36px' }}>
-        <GlobalLoader
-          size="lg"
-          text="Loading Forensic Investigation Dossier"
-          subtext="Retrieving risk signals, graph correlations, and master records from MySQL..."
-          badge={`Case #${caseId || 'Investigation'}`}
-        />
+        <GlobalLoader size="lg" />
 
       </div>
     );

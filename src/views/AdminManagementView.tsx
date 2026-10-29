@@ -787,7 +787,7 @@ export const AdminManagementView: React.FC = () => {
 
           {/* Policy Cards Grid */}
           {loadingPolicies ? (
-            <GlobalLoader size="sm" text="Loading Company Policies" subtext="Querying policy thresholds from MySQL..." />
+            <GlobalLoader size="sm" />
           ) : filteredPolicies.length === 0 ? (
             <Card>
               <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -1054,7 +1054,7 @@ export const AdminManagementView: React.FC = () => {
 
           {/* Parameters Table */}
           {loadingParameters ? (
-            <GlobalLoader size="sm" text="Loading Detection Parameters" subtext="Retrieving risk scoring weights from database..." />
+            <GlobalLoader size="sm" />
           ) : filteredParams.length === 0 ? (
             <Card>
               <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -1596,12 +1596,7 @@ export const AdminManagementView: React.FC = () => {
             </div>
 
             {loadingKnowledge ? (
-              <GlobalLoader
-                size="sm"
-                text="Loading Knowledge Base Policies"
-                subtext="Checking ChromaDB vector collections and active SOP documents..."
-                badge="Vector Store"
-              />
+              <GlobalLoader size="sm" />
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px' }}>
               {policies.map((p) => (

@@ -47,9 +47,9 @@ export const ActionHistoryView: React.FC = () => {
       {loading ? (
         <GlobalLoader
           size="md"
-          text="Loading Action Execution History"
-          subtext="Retrieving immutable audit logs and authorized mutations..."
-          badge="Audit Trail"
+
+
+
         />
       ) : actions.length === 0 ? (
         <EmptyState

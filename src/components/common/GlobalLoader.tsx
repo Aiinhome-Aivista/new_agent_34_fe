@@ -42,9 +42,9 @@ const SIZE_MAP: Record<string, number> = {
  */
 export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
   size = 'md',
-  text,
-  subtext,
-  badge,
+  text: _text,
+  subtext: _subtext,
+  badge: _badge,
   color = '#FFA24A',
   lightColor = '#FFBD7A',
   darkColor = '#F77F24',
@@ -64,25 +64,20 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
       viewBox="-360 -360 720 720"
       style={{ overflow: 'visible', display: 'block' }}
       role="img"
-      aria-label={text || 'Loading'}
+      aria-label={_text || 'Loading'}
     >
       <defs>
-        {/* Light Orange linear gradient */}
         <linearGradient id={`grad-${gradientId}`} x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor={lightColor} />
           <stop offset="50%" stopColor={color} />
           <stop offset="100%" stopColor={darkColor} />
         </linearGradient>
-
-        {/* Ambient radial glow */}
         <radialGradient id={`glow-${gradientId}`} cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor={color} stopOpacity="0.22" />
           <stop offset="65%" stopColor={color} stopOpacity="0.06" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </radialGradient>
       </defs>
-
-      {/* Subtle background ambient glow */}
       <circle
         cx="0"
         cy="0"
@@ -90,14 +85,6 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
         fill={`url(#glow-${gradientId})`}
         className="global-loader-ambient-glow"
       />
-
-      {/* 
-        7 Sliding Squares:
-        Each square has side 157.6, rx=17.3, centered at (0,0) and rotated -45 deg.
-        The outer group translates between the 8 spots using the exact Lottie keyframes.
-      */}
-
-      {/* Layer 0: B2 (Bottom-Right -> Center -> Bottom-Left) */}
       <g className="global-loader-sq global-loader-sq-b2">
         <g transform="rotate(-45)">
           <rect
@@ -112,8 +99,6 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
           />
         </g>
       </g>
-
-      {/* Layer 1: B3 (Right -> Bottom-Right) */}
       <g className="global-loader-sq global-loader-sq-b3">
         <g transform="rotate(-45)">
           <rect
@@ -128,8 +113,6 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
           />
         </g>
       </g>
-
-      {/* Layer 2: M3 (Top-Right -> Right) */}
       <g className="global-loader-sq global-loader-sq-m3">
         <g transform="rotate(-45)">
           <rect
@@ -144,8 +127,6 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
           />
         </g>
       </g>
-
-      {/* Layer 3: T3 (Top -> Top-Right) */}
       <g className="global-loader-sq global-loader-sq-t3">
         <g transform="rotate(-45)">
           <rect
@@ -160,8 +141,6 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
           />
         </g>
       </g>
-
-      {/* Layer 4: T2 (Top-Left -> Top) */}
       <g className="global-loader-sq global-loader-sq-t2">
         <g transform="rotate(-45)">
           <rect
@@ -176,8 +155,6 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
           />
         </g>
       </g>
-
-      {/* Layer 5: T1 (Left -> Top-Left) */}
       <g className="global-loader-sq global-loader-sq-t1">
         <g transform="rotate(-45)">
           <rect
@@ -192,8 +169,6 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
           />
         </g>
       </g>
-
-      {/* Layer 6: M1 (Bottom-Left -> Left) */}
       <g className="global-loader-sq global-loader-sq-m1">
         <g transform="rotate(-45)">
           <rect
@@ -214,9 +189,6 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
   const content = (
     <>
       {loaderSvg}
-      {text && <div className="global-loader-title">{text}</div>}
-      {subtext && <div className="global-loader-subtext">{subtext}</div>}
-      {badge && <div className="global-loader-badge">{badge}</div>}
       {overlay && onCancel && (
         <button
           type="button"

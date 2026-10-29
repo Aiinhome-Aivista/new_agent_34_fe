@@ -156,9 +156,9 @@ export const QueueView: React.FC<QueueViewProps> = ({ onSelectCase, initialCaseI
       {loading ? (
         <GlobalLoader
           size="md"
-          text="Loading Investigation Queue"
-          subtext="Querying active cases, triage scores, and assignment status..."
-          badge="Queue Sync"
+
+
+
         />
       ) : cases.length === 0 ? (
         <EmptyState

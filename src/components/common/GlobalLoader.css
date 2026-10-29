@@ -180,14 +180,15 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 36px 44px;
+  padding: 28px;
   border-radius: 20px;
   background: var(--color-surface, #ffffff);
   border: 1px solid var(--color-border, #e5e7eb);
   box-shadow: 0 20px 48px -8px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 162, 74, 0.15);
   text-align: center;
-  max-width: 440px;
-  width: 90%;
+  max-width: 280px;
+  width: auto;
+  min-width: 130px;
   position: relative;
   overflow: hidden;
 }

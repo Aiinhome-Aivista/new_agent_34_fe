@@ -46,9 +46,9 @@ export const IntegrationsView: React.FC = () => {
       {loading ? (
         <GlobalLoader
           size="lg"
-          text="Verifying System &amp; Infrastructure Integrations"
-          subtext="Performing live health checks across MySQL, ChromaDB, ArangoDB, and Redis..."
-          badge="Live Health Probe"
+
+
+
         />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>

@@ -76,9 +76,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate: _onNav
       {loading ? (
         <GlobalLoader
           size="lg"
-          text="Computing Persisted Fraud Analytics"
-          subtext="Fetching live investigation metrics, risk clusters, and database state..."
-          badge="Live DB Sync"
+
+
+
         />
       ) : data?.is_empty ? (
         <EmptyState
