@@ -100,14 +100,23 @@ jobs:
 
             docker rm ${{ env.CONTAINER_NAME }} || true
 
+            echo "Ensuring shared network exists..."
+
+            docker network create fraud-network || true
+
             echo "Starting new frontend container..."
 
             docker run -d \
               --name ${{ env.CONTAINER_NAME }} \
               --restart unless-stopped \
+              --network fraud-network \
               --add-host host.docker.internal:host-gateway \
               -p ${{ env.HOST_PORT }}:${{ env.CONTAINER_PORT }} \
               ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:deploy-1
+
+            echo "Connecting backend container to network if running..."
+
+            docker network connect fraud-network new-agent-34-be || true
 
             echo "Waiting for Nginx..."
 
