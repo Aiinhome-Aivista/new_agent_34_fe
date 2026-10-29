@@ -181,6 +181,22 @@ export const apiClient = {
     return res.json();
   },
 
+  async uploadCaseEvidence(caseId: string, formData: FormData): Promise<{
+    message: string;
+    case_id: string;
+    evidence: any;
+  }> {
+    const res = await fetch(`${API_BASE}/investigations/${caseId}/evidence-upload`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to upload evidence file');
+    }
+    return res.json();
+  },
+
   async triggerInvestigation(payload: {
     trigger_type: string;
     trigger_source: string;

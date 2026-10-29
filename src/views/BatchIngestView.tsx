@@ -402,26 +402,25 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
         </Card>
 
         {/* Guidelines Card */}
-        <Card title="Batch File Specification & Parameters">
+        <Card title="Microservice Batch Format (m_* Master Tables)">
           <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: '12px', lineHeight: 1.5 }}>
             <p style={{ margin: 0 }}>
-              The ingestion engine synchronizes the 4 required domain tables (<strong>users</strong>, <strong>orders</strong>, <strong>payments</strong>, <strong>chargebacks</strong>) and immediately evaluates each user against active detection parameters:
+              The ingestion engine supports a simplified <strong>3-4 column</strong> format. It searches the master user directory (<code>m_users</code>) by <code>user_id</code> or <code>email</code>, correlates linked orders (<code>m_orders</code>), payments (<code>m_payments</code>), and disputes (<code>m_chargebacks</code>), and immediately executes AI fraud investigation:
             </p>
 
             <ul style={{ paddingLeft: '20px', margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <li><strong>KYC Verification:</strong> <code>kyc_status=VERIFIED</code> marks legitimate profile.</li>
-              <li><strong>Velocity &amp; Failures:</strong> <code>payment_status=FAILED</code> triggers decline audit.</li>
-              <li><strong>High-Value Limit:</strong> Transactions &gt; <code>50,000</code> escalate to priority.</li>
-              <li><strong>Device Footprints:</strong> Matching <code>device_id</code> across accounts triggers Sybil ring check.</li>
-              <li><strong>Dispute Rates:</strong> <code>dispute_count &gt; 0</code> creates chargeback records and flags <code>SUSPICIOUS</code>.</li>
+              <li><strong>user_id</strong> (Required): Customer identifier (e.g. <code>USR_FRAUD_RING_01</code>).</li>
+              <li><strong>user_name</strong> (Optional): Full name for display and auto-provisioning.</li>
+              <li><strong>email</strong> (Optional): Used as primary or fallback lookup in <code>m_users</code>.</li>
+              <li><strong>reason</strong> (Optional): Specific trigger context or audit alert notes.</li>
             </ul>
 
             <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--color-input-background)', border: '1px solid var(--color-border)', marginTop: '4px' }}>
               <div style={{ fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CheckCircle size={14} color="#10B981" /> Ready-to-Test Template Available
+                <CheckCircle size={14} color="#10B981" /> 4-Column Template Ready to Test
               </div>
               <p style={{ margin: 0, fontSize: '0.78rem' }}>
-                Click <strong>"Download Sample CSV Template"</strong> above to get a pre-populated file with 5 realistic test cases (Normal user, card velocity fraud, KYC unverified fraud, shared device ring, dispute spike).
+                Click <strong>"Download Sample CSV Template"</strong> above for pre-configured test personas (Fraud Ring, KYC Pending, Verified VIP, Chargeback Heavy, Account Takeover, and Dormant Spike).
               </p>
             </div>
           </div>
@@ -504,8 +503,13 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
                         </td>
 
                         <td style={{ padding: '12px 14px' }}>
-                          <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{c.user_id}</div>
+                          <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                            {c.user_name || c.user_id}
+                          </div>
                           <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
+                            User: <code>{c.user_id}</code> {c.is_provisioned && <span style={{ color: '#F59E0B', fontSize: '0.72rem' }}>(New)</span>}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
                             Tx: <code>{c.transaction_id}</code>
                           </div>
                         </td>
