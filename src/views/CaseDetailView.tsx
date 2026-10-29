@@ -22,6 +22,8 @@ import {
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
+import { GlobalLoader } from '../components/common/GlobalLoader';
+import { useGlobalLoader } from '../context/LoadingContext';
 import { apiClient } from '../api/client';
 import type { InvestigationCase } from '../api/client';
 import { formatToIST } from '../utils/dateUtils';
@@ -33,6 +35,7 @@ interface CaseDetailViewProps {
 }
 
 export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, currentUser }) => {
+  const { showLoader, hideLoader } = useGlobalLoader();
   const [caseData, setCaseData] = useState<InvestigationCase | null>(null);
   const [auditEvents, setAuditEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +84,11 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
     }
     setSubmitting(true);
     setSubmitSuccess(null);
+    showLoader(
+      `Executing Action: ${decision.replace(/_/g, ' ')}`,
+      'Validating policy rules and recording immutable audit event...',
+      'Decision Gateway'
+    );
     try {
       const reviewerId = currentUser?.id || currentUser?.email || 'ANALYST_01';
       const res = await apiClient.submitDecision(caseId, {
@@ -96,6 +104,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
       alert(`Decision submission failed: ${err.message}`);
     } finally {
       setSubmitting(false);
+      hideLoader();
     }
   };
 
@@ -108,6 +117,11 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
 
     setUploading(true);
     setUploadSuccess(null);
+    showLoader(
+      'Uploading Forensic Evidence Artifact',
+      `Persisting evidence document and attaching to Case #${caseId}...`,
+      'Evidence Vault'
+    );
     try {
       const formData = new FormData();
       formData.append('file', uploadFile);
@@ -126,14 +140,20 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
       alert(`Evidence upload failed: ${err.message}`);
     } finally {
       setUploading(false);
+      hideLoader();
     }
   };
 
   if (loading) {
     return (
-      <div style={{ width: '100%', padding: '64px 36px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-        <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 12px auto', color: 'var(--color-primary)' }} />
-        <div>Loading forensic case data &amp; master records from MySQL...</div>
+      <div style={{ width: '100%', padding: '64px 36px' }}>
+        <GlobalLoader
+          size="lg"
+          text="Loading Forensic Investigation Dossier"
+          subtext="Retrieving risk signals, graph correlations, and master records from MySQL..."
+          badge={`Case #${caseId || 'Investigation'}`}
+        />
+
       </div>
     );
   }

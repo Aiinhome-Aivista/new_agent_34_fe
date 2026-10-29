@@ -1595,7 +1595,15 @@ export const AdminManagementView: React.FC = () => {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px' }}>
+            {loadingKnowledge ? (
+              <GlobalLoader
+                size="sm"
+                text="Loading Knowledge Base Policies"
+                subtext="Checking ChromaDB vector collections and active SOP documents..."
+                badge="Vector Store"
+              />
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '16px' }}>
               {policies.map((p) => (
                 <div
                   key={p.id}
@@ -1698,6 +1706,7 @@ export const AdminManagementView: React.FC = () => {
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Eye, EyeOff, Zap, ArrowRight, User, Lock, CheckCircle, ArrowLeft, Check } from 'lucide-react';
 import { apiClient } from '../api/client';
+import { useGlobalLoader } from '../context/LoadingContext';
 import type { PersonaUser } from '../api/client';
 
 interface LoginPageProps {
@@ -60,6 +61,7 @@ const FALLBACK_PERSONAS: PersonaUser[] = [
 ];
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
+  const { showLoader, hideLoader } = useGlobalLoader();
   const [personas, setPersonas] = useState<PersonaUser[]>(FALLBACK_PERSONAS);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -93,6 +95,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    showLoader(
+      'Authenticating Analyst',
+      'Verifying role credentials and establishing secure session...',
+      'Auth Gateway'
+    );
 
     try {
       const res = await apiClient.login({ email, password });
@@ -106,6 +113,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
       setError(err.message || 'Authentication failed. Please verify your credentials.');
     } finally {
       setLoading(false);
+      hideLoader();
     }
   };
 

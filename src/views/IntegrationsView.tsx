@@ -3,6 +3,7 @@ import { RefreshCw } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
+import { GlobalLoader } from '../components/common/GlobalLoader';
 import { apiClient } from '../api/client';
 import type { IntegrationItem } from '../api/client';
 
@@ -31,7 +32,7 @@ export const IntegrationsView: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-            Infrastructure & Integration Health
+            Infrastructure &amp; Integration Health
           </h1>
           <p style={{ fontSize: '0.88rem', color: 'var(--color-text-secondary)' }}>
             Real connectivity status for all forensic storage, RAG vector index, graph, and runtime layers.
@@ -43,9 +44,12 @@ export const IntegrationsView: React.FC = () => {
       </div>
 
       {loading ? (
-        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-          Performing live health checks on external databases and runtimes...
-        </div>
+        <GlobalLoader
+          size="lg"
+          text="Verifying System &amp; Infrastructure Integrations"
+          subtext="Performing live health checks across MySQL, ChromaDB, ArangoDB, and Redis..."
+          badge="Live Health Probe"
+        />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
           {integrations.map((item, idx) => (

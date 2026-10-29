@@ -54,7 +54,8 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
   style,
 }) => {
   const pixelSize = typeof size === 'number' ? size : SIZE_MAP[size] || 76;
-  const gradientId = React.useId ? React.useId().replace(/:/g, '') : 'globalLoaderGrad';
+  const autoId = React.useId();
+  const gradientId = autoId.replace(/:/g, '');
 
   const loaderSvg = (
     <svg
