@@ -8,7 +8,7 @@ export interface GlobalLoaderProps {
   size?: GlobalLoaderSize;
   /** Primary label displayed beneath the animation */
   text?: string;
-  /** Secondary subtle description */
+  /** Secondary subtle description   */
   subtext?: string;
   /** Optional badge pill (e.g. 'Zero-Mock Engine') */
   badge?: string;
