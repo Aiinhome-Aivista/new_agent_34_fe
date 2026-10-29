@@ -402,7 +402,7 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
         </Card>
 
         {/* Guidelines Card */}
-        <Card title="Microservice Batch Format (m_* Master Tables)">
+        {/* <Card title="Microservice Batch Format (m_* Master Tables)">
           <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', display: 'flex', flexDirection: 'column', gap: '12px', lineHeight: 1.5 }}>
             <p style={{ margin: 0 }}>
               The ingestion engine supports a simplified <strong>3-4 column</strong> format. It searches the master user directory (<code>m_users</code>) by <code>user_id</code> or <code>email</code>, correlates linked orders (<code>m_orders</code>), payments (<code>m_payments</code>), and disputes (<code>m_chargebacks</code>), and immediately executes AI fraud investigation:
@@ -424,7 +424,7 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
               </p>
             </div>
           </div>
-        </Card>
+        </Card> */}
       </div>
 
       {/* Ingestion Results & Case Table */}

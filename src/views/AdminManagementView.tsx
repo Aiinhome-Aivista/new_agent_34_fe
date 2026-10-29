@@ -585,7 +585,7 @@ export const AdminManagementView: React.FC = () => {
           </div>
         </div>
 
-        <div
+        {/* <div
           style={{
             padding: '18px',
             borderRadius: 'var(--radius-md)',
@@ -595,8 +595,8 @@ export const AdminManagementView: React.FC = () => {
             alignItems: 'center',
             gap: '14px',
           }}
-        >
-          <div
+        > */}
+          {/* <div
             style={{
               width: '42px',
               height: '42px',
@@ -615,8 +615,8 @@ export const AdminManagementView: React.FC = () => {
               {knowledgeStatus ? `${knowledgeStatus.indexed_vectors_count} Chunks` : 'ChromaDB'}
             </div>
             <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Vector Store (RAG)</div>
-          </div>
-        </div>
+          </div> */}
+        {/* </div> */}
       </div>
 
       {feedback && (
