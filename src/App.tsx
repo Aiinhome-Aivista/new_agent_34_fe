@@ -14,6 +14,7 @@ import { AdminManagementView } from './views/AdminManagementView';
 import { BatchIngestView } from './views/BatchIngestView';
 import { TaskProgressProvider } from './context/TaskProgressContext';
 import { GlobalTaskProgressDock } from './components/common/GlobalTaskProgressDock';
+import { EvidenceSubmissionPortal } from './views/EvidenceSubmissionPortal';
 import './styles/globals.css';
 
 type Page = 'landing' | 'login' | 'app';
@@ -63,6 +64,16 @@ function AppInner() {
     setCurrentTab('casedetail');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // ── PUBLIC: Customer Evidence Submission Portal (Direct Link) ────────────
+  const isEvidencePortal = 
+    window.location.search.includes('token=') ||
+    window.location.pathname.includes('/evidence-submission') ||
+    window.location.pathname.includes('/evidence-portal');
+
+  if (isEvidencePortal) {
+    return <EvidenceSubmissionPortal />;
+  }
 
   // ── PUBLIC: Landing page ──────────────────────────────────────────────────
   if (page === 'landing') {
