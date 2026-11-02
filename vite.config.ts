@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ mode }) => {
   // Load environment variables based on `mode` in the current working directory
   const env = loadEnv(mode, process.cwd(), '')
-  const backendTarget = env.VITE_BACKEND_URL || env.BACKEND_URL || 'http://localhost:5000'
+  const backendTarget = env.VITE_BACKEND_URL || env.BACKEND_URL || 'http://localhost:3052'
   const port = Number(env.PORT) || 5173
 
   return {
