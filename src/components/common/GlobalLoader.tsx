@@ -18,9 +18,9 @@ export interface GlobalLoaderProps {
   lightColor?: string;
   /** Darker gradient stop. Default: #F77F24 */
   darkColor?: string;
-  /** Render as fixed full-screen overlay with blurred backdrop */
+  /** Render as fixed full-screen overlay */
   overlay?: boolean;
-  /** Optional callback to allow user to dismiss/cancel */
+  /** Optional callback to allow user to dismiss/cancel (deprecated/ignored) */
   onCancel?: () => void;
   /** Custom CSS class */
   className?: string;
@@ -49,7 +49,6 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
   lightColor = '#FFBD7A',
   darkColor = '#F77F24',
   overlay = false,
-  onCancel,
   className = '',
   style,
 }) => {
@@ -186,53 +185,19 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
     </svg>
   );
 
-  const content = (
-    <>
-      {loaderSvg}
-      {overlay && onCancel && (
-        <button
-          type="button"
-          onClick={onCancel}
-          style={{
-            marginTop: '20px',
-            background: 'transparent',
-            border: '1px solid var(--color-border, #d8d8d8)',
-            padding: '6px 16px',
-            borderRadius: '8px',
-            fontSize: '0.78rem',
-            color: 'var(--color-text-secondary, #888)',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = 'var(--color-text-primary, #000)';
-            e.currentTarget.style.borderColor = 'var(--color-primary, #FF5A14)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'var(--color-text-secondary, #888)';
-            e.currentTarget.style.borderColor = 'var(--color-border, #d8d8d8)';
-          }}
-        >
-          Cancel
-        </button>
-      )}
-    </>
-  );
-
   if (overlay) {
     return (
       <div className={`global-loader-overlay ${className}`} style={style} role="status" aria-live="polite">
-        <div className="global-loader-card">{content}</div>
+        {loaderSvg}
       </div>
     );
   }
 
   return (
     <div className={`global-loader-inline ${className}`} style={style} role="status" aria-live="polite">
-      {content}
+      {loaderSvg}
     </div>
   );
 };
 
 export default GlobalLoader;
-

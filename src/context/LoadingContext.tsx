@@ -101,14 +101,6 @@ export const LoadingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         <GlobalLoader
           overlay
           size="lg"
-          text={state.message}
-          subtext={state.subtext}
-          badge={state.badge}
-          onCancel={() => {
-            activeCountRef.current = 0;
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
-            setState({ isLoading: false, message: undefined, subtext: undefined, badge: undefined });
-          }}
         />
       )}
     </LoadingContext.Provider>

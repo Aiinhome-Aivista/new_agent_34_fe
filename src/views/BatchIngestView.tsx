@@ -506,7 +506,24 @@ export const BatchIngestView: React.FC<BatchIngestViewProps> = ({
                             {c.user_name || c.user_id}
                           </div>
                           <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
-                            User: <code>{c.user_id}</code> {c.is_provisioned && <span style={{ color: '#F59E0B', fontSize: '0.72rem' }}>(New)</span>}
+                            User: <code>{c.user_id}</code>{' '}
+                            {c.is_provisioned && <span style={{ color: '#F59E0B', fontSize: '0.72rem' }}>(New)</span>}
+                            {c.user_exists === false && (
+                              <span
+                                style={{
+                                  color: '#EF4444',
+                                  backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 600,
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  marginLeft: '4px',
+                                }}
+                              >
+                                Not in DB
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
                             Tx: <code>{c.transaction_id}</code>

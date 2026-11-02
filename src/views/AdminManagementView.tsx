@@ -1712,7 +1712,7 @@ export const AdminManagementView: React.FC = () => {
         onClose={() => setIsPolicyModalOpen(false)}
         title={editingPolicy ? `Edit Policy: ${editingPolicy.document_key}` : 'Create New Company Policy'}
         subtitle="Configure organization fraud rules, thresholds, and vector-indexed mandatory clauses"
-        maxWidth="640px"
+        maxWidth="760px"
         onSubmit={handleSavePolicy}
         footer={
           <>
@@ -1819,15 +1819,20 @@ export const AdminManagementView: React.FC = () => {
         </div>
 
         <div>
-          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-            Policy Content / Mandatory Clauses (Vector RAG Indexed)
-          </label>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+              Policy Content / Mandatory Clauses (Vector RAG Indexed)
+            </label>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+              {policyForm.content ? `${policyForm.content.length.toLocaleString()} characters` : "0 characters"}
+            </span>
+          </div>
           <textarea
-            rows={4}
+            rows={12}
             value={policyForm.content}
             onChange={(e) => setPolicyForm({ ...policyForm, content: e.target.value })}
             placeholder="Specify exact clauses that the LLM agent will retrieve and ground recommendations against..."
-            style={{ width: '100%' }}
+            style={{ width: '100%', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.82rem', maxHeight: '420px', overflowY: 'auto', lineHeight: '1.5' }}
           />
         </div>
       </Modal>
@@ -1838,7 +1843,7 @@ export const AdminManagementView: React.FC = () => {
         onClose={() => setIsParamModalOpen(false)}
         title={editingParam ? `Edit Parameter: ${editingParam.name}` : 'Add Fraud Detection Parameter'}
         subtitle="Define automated fraud signals, risk weights, and evaluation thresholds across investigative sections"
-        maxWidth="640px"
+        maxWidth="760px"
         onSubmit={handleSaveParam}
         footer={
           <>

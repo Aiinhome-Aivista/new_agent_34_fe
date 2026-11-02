@@ -18,6 +18,11 @@ import {
   ShieldAlert,
   Download,
   RefreshCw,
+  Mail,
+  Copy,
+  Check,
+  ExternalLink,
+  ShieldCheck,
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
@@ -57,6 +62,19 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
   // Lightbox Modal State
   const [selectedEvidence, setSelectedEvidence] = useState<any | null>(null);
 
+  // Customer Evidence Request (Portal) State
+  const [requestMethod, setRequestMethod] = useState<'EMAIL_LINK' | 'DIRECT_UPLOAD'>('EMAIL_LINK');
+  const [customerReqReason, setCustomerReqReason] = useState('Additional supporting documentation required for fraud verification.');
+  const [reqDocGovtId, setReqDocGovtId] = useState(true);
+  const [reqDocInvoice, setReqDocInvoice] = useState(true);
+  const [reqDocPaymentProof, setReqDocPaymentProof] = useState(true);
+  const [reqDocDeliveryProof, setReqDocDeliveryProof] = useState(false);
+  const [reqExpiryHours, setReqExpiryHours] = useState(48);
+  const [dispatchingPortalReq, setDispatchingPortalReq] = useState(false);
+  const [portalDispatchResult, setPortalDispatchResult] = useState<any | null>(null);
+  const [copiedPortalLink, setCopiedPortalLink] = useState(false);
+  const [existingRequests, setExistingRequests] = useState<any[]>([]);
+
   const loadCase = async () => {
     setLoading(true);
     try {
@@ -65,6 +83,8 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
       // Also fetch audit events for this specific case
       const auditRes = await apiClient.getAuditEvents(caseId);
       setAuditEvents(auditRes.events || auditRes.items || []);
+      const reqRes = await apiClient.getCaseEvidenceRequests(caseId).catch(() => ({ items: [] }));
+      setExistingRequests(reqRes.items || []);
     } catch (err: any) {
       setError(err.message || 'Could not load case details');
     } finally {
@@ -106,6 +126,46 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
       setSubmitting(false);
       hideLoader();
     }
+  };
+
+  const handleDispatchEvidenceRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDispatchingPortalReq(true);
+    setPortalDispatchResult(null);
+    showLoader(
+      'Dispatching Customer Evidence Request',
+      'Generating cryptographically signed token and dispatching email notification...',
+      'Portal Dispatcher'
+    );
+    try {
+      const docs = [];
+      if (reqDocGovtId) docs.push({ key: 'GOVT_ID', label: 'Government Issued Photo ID (Passport / License / National ID)' });
+      if (reqDocInvoice) docs.push({ key: 'TAX_INVOICE', label: 'Purchase Invoice / Merchant Receipt' });
+      if (reqDocPaymentProof) docs.push({ key: 'PAYMENT_PROOF', label: 'Bank Statement / Card Statement Slip' });
+      if (reqDocDeliveryProof) docs.push({ key: 'DELIVERY_PROOF', label: 'Proof of Delivery / Courier Tracking' });
+
+      const res = await apiClient.requestEvidenceFromCustomer(caseId, {
+        reviewer_id: currentUser?.id || currentUser?.email || 'ANALYST_01',
+        reason: customerReqReason.trim(),
+        requested_documents: docs,
+        expiry_hours: reqExpiryHours,
+      });
+
+      setPortalDispatchResult(res);
+      await loadCase();
+    } catch (err: any) {
+      alert(`Failed to dispatch evidence request: ${err.message}`);
+    } finally {
+      setDispatchingPortalReq(false);
+      hideLoader();
+    }
+  };
+
+  const handleCopyPortalLink = () => {
+    if (!portalDispatchResult?.portal_url) return;
+    navigator.clipboard.writeText(portalDispatchResult.portal_url);
+    setCopiedPortalLink(true);
+    setTimeout(() => setCopiedPortalLink(false), 2500);
   };
 
   const handleEvidenceUploadSubmit = async (e: React.FormEvent) => {
@@ -491,51 +551,252 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
               </Button>
             </form>
 
-            {/* In-Line Evidence Upload Dropzone when "REQUEST_EVIDENCE" is selected */}
+            {/* Evidence Request Panel when REQUEST_EVIDENCE is selected */}
             {decision === 'REQUEST_EVIDENCE' && (
               <div
                 style={{
-                  marginTop: '18px',
-                  padding: '16px',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'rgba(59, 130, 246, 0.06)',
-                  border: '1.5px dashed #3B82F6',
+                  marginTop: '20px',
+                  padding: '18px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.88rem', color: '#3B82F6', marginBottom: '8px' }}>
-                  <UploadCloud size={16} />
-                  <span>Attach Supporting Document / Image</span>
-                </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', marginBottom: '12px' }}>
-                  Upload customer identity document, KYC proof, invoice, or screenshot. Files are securely archived and visible in the lightbox viewer.
-                </p>
-
-                <form onSubmit={handleEvidenceUploadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <input
-                    id="evidence-file-input"
-                    type="file"
-                    accept=".png,.jpg,.jpeg,.webp,.pdf,.docx,.txt"
-                    onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
-                    style={{ fontSize: '0.82rem' }}
-                  />
-
-                  <input
-                    type="text"
-                    value={uploadNotes}
-                    onChange={(e) => setUploadNotes(e.target.value)}
-                    placeholder="Document description / notes (e.g. Government Aadhaar / Passport scan)"
-                    style={{ width: '100%', fontSize: '0.82rem' }}
-                  />
-
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={uploading || !uploadFile}
-                    icon={uploading ? <RefreshCw size={14} className="animate-spin" /> : <UploadCloud size={14} />}
+                {/* Method Switcher Tabs */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRequestMethod('EMAIL_LINK')}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid',
+                      borderColor: requestMethod === 'EMAIL_LINK' ? '#2563EB' : 'var(--color-border)',
+                      backgroundColor: requestMethod === 'EMAIL_LINK' ? '#2563EB' : 'var(--color-surface)',
+                      color: requestMethod === 'EMAIL_LINK' ? '#FFFFFF' : 'var(--color-text-secondary)',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
                   >
-                    {uploading ? 'Uploading Evidence...' : 'Upload & Attach to Case'}
-                  </Button>
-                </form>
+                    <Mail size={14} />
+                    <span>Send Customer Email Link</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRequestMethod('DIRECT_UPLOAD')}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid',
+                      borderColor: requestMethod === 'DIRECT_UPLOAD' ? '#2563EB' : 'var(--color-border)',
+                      backgroundColor: requestMethod === 'DIRECT_UPLOAD' ? '#2563EB' : 'var(--color-surface)',
+                      color: requestMethod === 'DIRECT_UPLOAD' ? '#FFFFFF' : 'var(--color-text-secondary)',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    <UploadCloud size={14} />
+                    <span>Analyst Direct Upload</span>
+                  </button>
+                </div>
+
+                {requestMethod === 'EMAIL_LINK' ? (
+                  <form onSubmit={handleDispatchEvidenceRequest} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: 700, color: '#1E40AF' }}>
+                      <ShieldCheck size={18} color="#2563EB" />
+                      <span>One-Page Customer Evidence Submission Portal</span>
+                    </div>
+
+                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                      Dispatches a time-bound, cryptographically signed magic link to the account holder's registered email. The customer must pass an OTP identity challenge before submitting images and transaction statements.
+                    </p>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px' }}>
+                        Reason / Instructions to Customer
+                      </label>
+                      <input
+                        type="text"
+                        value={customerReqReason}
+                        onChange={(e) => setCustomerReqReason(e.target.value)}
+                        placeholder="e.g. Identity and invoice proof required for high-value transaction"
+                        style={{ width: '100%', fontSize: '0.82rem' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px' }}>
+                        Required Document Types
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={reqDocGovtId} onChange={(e) => setReqDocGovtId(e.target.checked)} />
+                          <span>Government Photo ID</span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={reqDocInvoice} onChange={(e) => setReqDocInvoice(e.target.checked)} />
+                          <span>Tax Invoice / Receipt</span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={reqDocPaymentProof} onChange={(e) => setReqDocPaymentProof(e.target.checked)} />
+                          <span>Bank / Card Slip</span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={reqDocDeliveryProof} onChange={(e) => setReqDocDeliveryProof(e.target.checked)} />
+                          <span>Proof of Delivery</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px' }}>
+                        Link Validity Duration
+                      </label>
+                      <select
+                        value={reqExpiryHours}
+                        onChange={(e) => setReqExpiryHours(Number(e.target.value))}
+                        style={{ width: '100%', fontSize: '0.82rem' }}
+                      >
+                        <option value={24}>24 Hours</option>
+                        <option value={48}>48 Hours (Recommended)</option>
+                        <option value={72}>72 Hours</option>
+                        <option value={168}>7 Days</option>
+                      </select>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="sm"
+                      disabled={dispatchingPortalReq}
+                      icon={dispatchingPortalReq ? <RefreshCw size={14} className="animate-spin" /> : <Mail size={14} />}
+                    >
+                      {dispatchingPortalReq ? 'Dispatching...' : 'Dispatch Email Link to Customer'}
+                    </Button>
+
+                    {/* Dispatched Link Success Box */}
+                    {portalDispatchResult && (
+                      <div
+                        style={{
+                          marginTop: '10px',
+                          padding: '14px',
+                          borderRadius: '8px',
+                          backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          fontSize: '0.8rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#065F46', fontWeight: 700, marginBottom: '6px' }}>
+                          <CheckCircle size={16} color="#10B981" />
+                          <span>Evidence Request Dispatched to {portalDispatchResult.recipient_email}</span>
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: '#047857', marginBottom: '8px' }}>
+                          Link valid until: <strong>{new Date(portalDispatchResult.expires_at).toLocaleString()}</strong>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={handleCopyPortalLink}
+                            icon={copiedPortalLink ? <Check size={14} color="#10B981" /> : <Copy size={14} />}
+                          >
+                            {copiedPortalLink ? 'Link Copied!' : 'Copy Portal Link'}
+                          </Button>
+
+                          <a
+                            href={portalDispatchResult.portal_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ textDecoration: 'none' }}
+                          >
+                            <Button
+                              type="button"
+                              variant="primary"
+                              size="sm"
+                              icon={<ExternalLink size={14} />}
+                            >
+                              Open Portal as Customer
+                            </Button>
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </form>
+                ) : (
+                  <form onSubmit={handleEvidenceUploadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.85rem', color: '#3B82F6', marginBottom: '4px' }}>
+                      <UploadCloud size={16} />
+                      <span>Direct Document Attachment by Analyst</span>
+                    </div>
+                    <input
+                      id="evidence-file-input"
+                      type="file"
+                      accept=".png,.jpg,.jpeg,.webp,.pdf,.docx,.txt"
+                      onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
+                      style={{ fontSize: '0.82rem' }}
+                    />
+                    <input
+                      type="text"
+                      value={uploadNotes}
+                      onChange={(e) => setUploadNotes(e.target.value)}
+                      placeholder="Document description / notes"
+                      style={{ width: '100%', fontSize: '0.82rem' }}
+                    />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={uploading || !uploadFile}
+                      icon={uploading ? <RefreshCw size={14} className="animate-spin" /> : <UploadCloud size={14} />}
+                    >
+                      {uploading ? 'Uploading Evidence...' : 'Upload & Attach to Case'}
+                    </Button>
+                  </form>
+                )}
+
+                {/* Existing Evidence Requests History */}
+                {existingRequests && existingRequests.length > 0 && (
+                  <div style={{ marginTop: '14px', borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                      Previous Evidence Requests ({existingRequests.length})
+                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                      {existingRequests.map((req: any) => (
+                        <div
+                          key={req.id}
+                          style={{
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            backgroundColor: 'var(--color-surface)',
+                            border: '1px solid var(--color-border)',
+                            fontSize: '0.74rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <div>
+                            <span style={{ fontWeight: 600 }}>{req.request_reason}</span>
+                            <span style={{ color: 'var(--color-text-secondary)', marginLeft: '8px' }}>
+                              · {new Date(req.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <Badge type={req.status}>{req.status}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </Card>
@@ -576,9 +837,17 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                 }}
               >
                 {caseData.evidence_items.map((ev: any) => {
+                  const isPortalSubmission =
+                    ev.source_system === 'CUSTOMER_EVIDENCE_PORTAL' ||
+                    ev.evidence_type === 'USER_PORTAL_IMAGE' ||
+                    ev.evidence_type === 'USER_PORTAL_DOCUMENT' ||
+                    ev.evidence_type === 'USER_TRANSACTION_STATEMENT';
+
                   const isUploadedDoc =
                     ev.evidence_type === 'USER_UPLOADED_IMAGE' ||
                     ev.evidence_type === 'USER_UPLOADED_DOCUMENT' ||
+                    ev.evidence_type === 'USER_PORTAL_IMAGE' ||
+                    ev.evidence_type === 'USER_PORTAL_DOCUMENT' ||
                     ev.normalized_payload?.file_url;
 
                   return (
@@ -601,8 +870,51 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                           )}
                           <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{ev.evidence_type}</span>
                         </div>
-                        <Badge type={ev.retrieval_status}>{ev.retrieval_status}</Badge>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                          {isPortalSubmission && (
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                color: '#059669',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                              }}
+                            >
+                              PORTAL
+                            </span>
+                          )}
+                          <Badge type={ev.retrieval_status}>{ev.retrieval_status}</Badge>
+                        </div>
                       </div>
+
+                      {/* Customer Transaction Statement Card */}
+                      {ev.evidence_type === 'USER_TRANSACTION_STATEMENT' && ev.normalized_payload && (
+                        <div
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: '6px',
+                            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                            marginBottom: '10px',
+                            fontSize: '0.8rem',
+                          }}
+                        >
+                          <div style={{ fontWeight: 700, color: '#065F46', marginBottom: '4px' }}>
+                            Customer Statement:
+                          </div>
+                          <div style={{ color: 'var(--color-text-primary)', fontStyle: 'italic', marginBottom: '6px' }}>
+                            "{ev.normalized_payload.user_explanation}"
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#047857', display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                            <span>Claimed: <strong>₹{ev.normalized_payload.claimed_amount}</strong></span>
+                            <span>Date: <strong>{ev.normalized_payload.transaction_date}</strong></span>
+                            <span>Method: <strong>{ev.normalized_payload.payment_method_details}</strong></span>
+                          </div>
+                        </div>
+                      )}
 
                       <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
                         Source: <strong>{ev.source_system}</strong> · Ref: <code>{ev.source_reference || 'N/A'}</code>

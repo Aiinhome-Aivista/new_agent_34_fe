@@ -517,6 +517,128 @@ export const apiClient = {
     const res = await fetch(`${API_BASE}/admin/knowledge/status`);
     if (!res.ok) throw new Error('Failed to fetch knowledge base status');
     return res.json();
+  },
+
+  // --- Customer Evidence Portal Endpoints ---
+  async requestEvidenceFromCustomer(caseId: string, payload: {
+    reviewer_id?: string;
+    reason: string;
+    requested_documents?: Array<{ key: string; label: string }>;
+    expiry_hours?: number;
+  }): Promise<{
+    message: string;
+    request_id: string;
+    case_id: string;
+    token: string;
+    portal_url: string;
+    recipient_email: string;
+    expires_at: string;
+    case_status: string;
+  }> {
+    const res = await fetch(`${API_BASE}/portal/request-evidence/${caseId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to dispatch evidence request');
+    }
+    return res.json();
+  },
+
+  async getCaseEvidenceRequests(caseId: string): Promise<{
+    case_id: string;
+    items: any[];
+  }> {
+    const res = await fetch(`${API_BASE}/portal/requests-for-case/${caseId}`);
+    if (!res.ok) throw new Error('Failed to fetch case evidence requests');
+    return res.json();
+  },
+
+  async getPublicEvidenceRequest(token: string): Promise<{
+    valid: boolean;
+    case_reference: string;
+    customer: {
+      masked_name: string;
+      masked_email: string;
+      masked_phone: string;
+    };
+    transaction_context: {
+      transaction_id_masked: string;
+      amount: number;
+      currency: string;
+      transaction_date: string;
+      payment_method: string;
+    };
+    request_reason: string;
+    requested_documents: Array<{ key: string; label: string }>;
+    expires_at: string;
+    requires_otp: boolean;
+    status: string;
+  }> {
+    const res = await fetch(`${API_BASE}/portal/evidence-request?token=${encodeURIComponent(token)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to retrieve evidence request context');
+    }
+    return res.json();
+  },
+
+  async sendPortalOtp(token: string): Promise<{
+    success: boolean;
+    message: string;
+    expires_in_seconds: number;
+    demo_hint?: string;
+  }> {
+    const res = await fetch(`${API_BASE}/portal/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to dispatch OTP verification code');
+    }
+    return res.json();
+  },
+
+  async verifyPortalOtp(token: string, otp: string): Promise<{
+    verified: boolean;
+    session_token: string;
+    expires_in_seconds: number;
+    message: string;
+  }> {
+    const res = await fetch(`${API_BASE}/portal/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, otp }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to verify code');
+    }
+    return res.json();
+  },
+
+  async submitPortalEvidence(formData: FormData): Promise<{
+    success: boolean;
+    submission_reference: string;
+    message: string;
+    case_id: string;
+    case_status: string;
+    items_submitted_count: number;
+    submitted_at: string;
+  }> {
+    const res = await fetch(`${API_BASE}/portal/submit-evidence`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to submit evidence');
+    }
+    return res.json();
   }
 };
 
