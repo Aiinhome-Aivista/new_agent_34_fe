@@ -72,6 +72,26 @@ export const EvidenceSubmissionPortal: React.FC = () => {
 
 
 
+  // Ensure the entire page, html and body are strictly in light mode for the customer portal
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevTheme = html.getAttribute('data-theme');
+    const prevBodyBg = body.style.backgroundColor;
+
+    html.setAttribute('data-theme', 'light');
+    body.style.backgroundColor = '#F1F5F9';
+
+    return () => {
+      if (prevTheme) {
+        html.setAttribute('data-theme', prevTheme);
+      } else {
+        html.removeAttribute('data-theme');
+      }
+      body.style.backgroundColor = prevBodyBg;
+    };
+  }, []);
+
   // 1. Initial Token Context Verification
   useEffect(() => {
     if (!token) {
@@ -389,13 +409,14 @@ export const EvidenceSubmissionPortal: React.FC = () => {
         {/* Top Header */}
         <header
           style={{
-            padding: '24px 32px',
+            flexShrink: 0,
+            padding: '16px 24px',
             borderBottom: '1px solid #E2E8F0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '16px',
+            gap: '12px',
             backgroundColor: '#FFFFFF',
             borderTopLeftRadius: '16px',
             borderTopRightRadius: '16px',
@@ -455,7 +476,7 @@ export const EvidenceSubmissionPortal: React.FC = () => {
         </header>
 
         {/* Stepper Progress Bar */}
-        <div style={{ padding: '20px 32px', backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+        <div style={{ flexShrink: 0, padding: '12px 24px', backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 1 }}>
               <div style={stepBubbleStyle(step === 'VERIFY_OTP' ? 'active' : 'completed')}>1</div>
@@ -486,15 +507,15 @@ export const EvidenceSubmissionPortal: React.FC = () => {
 
         {/* ── STEP 1: IDENTITY CHALLENGE (OTP) ─────────────────────────────── */}
         {step === 'VERIFY_OTP' && (
-          <div style={{ padding: '36px 32px' }} className="animate-fade-in">
-            <div style={{ textAlign: 'center', maxWidth: '480px', margin: '0 auto 32px' }}>
+          <div style={{ padding: '24px 28px 28px', overflowY: 'auto', flex: 1, minHeight: 0 }} className="animate-fade-in">
+            <div style={{ textAlign: 'center', maxWidth: '480px', margin: '0 auto 16px' }}>
               <div style={iconBadgeStyle('#FF5A14', 'rgba(255, 90, 20, 0.1)')}>
-                <Lock size={32} color="#FF5A14" />
+                <Lock size={22} color="#FF5A14" />
               </div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '14px 0 6px', color: '#0F172A' }}>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '10px 0 4px', color: '#0F172A' }}>
                 Account Holder Verification
               </h2>
-              <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.8rem', color: '#475569', lineHeight: 1.4, margin: 0 }}>
                 To safeguard your account and ensure authorized access, we verify the registered owner before accepting evidence.
               </p>
             </div>
@@ -503,15 +524,15 @@ export const EvidenceSubmissionPortal: React.FC = () => {
             <div
               style={{
                 maxWidth: '480px',
-                margin: '0 auto 28px',
-                padding: '16px 20px',
-                borderRadius: '12px',
+                margin: '0 auto 18px',
+                padding: '10px 16px',
+                borderRadius: '10px',
                 backgroundColor: '#F8FAFC',
                 border: '1px solid #E2E8F0',
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
-                gap: '12px',
-                fontSize: '0.82rem',
+                gap: '8px 12px',
+                fontSize: '0.78rem',
               }}
             >
               <div>
@@ -557,14 +578,14 @@ export const EvidenceSubmissionPortal: React.FC = () => {
               </div>
             ) : (
               <form onSubmit={handleVerifyOtp} style={{ maxWidth: '420px', margin: '0 auto' }}>
-                <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                  <span style={{ fontSize: '0.85rem', color: '#475569' }}>
+                <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '0.8rem', color: '#475569' }}>
                     Enter the 6-digit code sent to <strong>{portalData?.customer?.masked_email}</strong>:
                   </span>
                 </div>
 
                 {/* 6 Digit Input Boxes */}
-                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '14px' }}>
                   {otpDigits.map((digit, idx) => (
                     <input
                       key={idx}
@@ -578,12 +599,12 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                       onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                       autoFocus={idx === 0}
                       style={{
-                        width: '48px',
-                        height: '56px',
+                        width: '42px',
+                        height: '48px',
                         textAlign: 'center',
-                        fontSize: '1.4rem',
+                        fontSize: '1.25rem',
                         fontWeight: 700,
-                        borderRadius: '10px',
+                        borderRadius: '8px',
                         border: digit ? '2px solid #FF5A14' : '1px solid #CBD5E1',
                         backgroundColor: '#FFFFFF',
                         color: '#0F172A',
@@ -675,7 +696,7 @@ export const EvidenceSubmissionPortal: React.FC = () => {
 
         {/* ── STEP 2: DETAILS & EVIDENCE UPLOAD FORM ───────────────────────── */}
         {step === 'FORM_UPLOAD' && (
-          <form onSubmit={handleSubmitEvidence} style={{ padding: '32px' }} className="animate-fade-in">
+          <form onSubmit={handleSubmitEvidence} style={{ padding: '24px 32px 36px', overflowY: 'auto', flex: 1, minHeight: 0 }} className="animate-fade-in">
             {/* Required Documents Banner */}
             <div
               style={{
@@ -1140,7 +1161,7 @@ export const EvidenceSubmissionPortal: React.FC = () => {
 
         {/* ── STEP 3: SUBMISSION SUCCESS & CONFIRMATION ─────────────────────── */}
         {step === 'SUCCESS' && (
-          <div style={{ padding: '48px 32px', textAlign: 'center' }} className="animate-fade-in">
+          <div style={{ padding: '36px 32px', textAlign: 'center', overflowY: 'auto', flex: 1, minHeight: 0 }} className="animate-fade-in">
             <div style={iconBadgeStyle('#10B981', 'rgba(16, 185, 129, 0.12)')}>
               <CheckCircle2 size={42} color="#10B981" />
             </div>
@@ -1243,12 +1264,17 @@ const containerStyle: React.CSSProperties = {
   width: '100%',
   backgroundColor: '#F1F5F9',
   backgroundImage: 'radial-gradient(ellipse at 50% 0%, #EFF6FF 0%, #F1F5F9 65%, #E2E8F0 100%)',
+  backgroundAttachment: 'fixed',
+  backgroundSize: 'cover',
   display: 'flex',
+  flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: '36px 16px',
+  padding: '24px 16px 40px',
+  boxSizing: 'border-box',
   fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
   color: '#0F172A',
+  overflowY: 'auto',
 };
 
 const cardStyle: React.CSSProperties = {
@@ -1257,12 +1283,16 @@ const cardStyle: React.CSSProperties = {
   borderRadius: '16px',
   boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
   border: '1px solid #E2E8F0',
+  display: 'flex',
+  flexDirection: 'column',
+  maxHeight: 'calc(100vh - 48px)',
   overflow: 'hidden',
+  margin: 'auto 0',
 };
 
 const iconBadgeStyle = (_color: string, bg: string): React.CSSProperties => ({
-  width: '64px',
-  height: '64px',
+  width: '46px',
+  height: '46px',
   borderRadius: '50%',
   backgroundColor: bg,
   display: 'flex',
@@ -1292,7 +1322,7 @@ const stepBubbleStyle = (state: 'completed' | 'active' | 'pending'): React.CSSPr
 
 const primaryButtonStyle: React.CSSProperties = {
   width: '100%',
-  padding: '13px 20px',
+  padding: '11px 18px',
   borderRadius: '10px',
   backgroundColor: '#FF5A14',
   color: '#FFFFFF',

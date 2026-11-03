@@ -129,24 +129,9 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
     loadCase();
   }, [caseId]);
 
+  // Natural scrolling preserved - scrolling is not removed when viewing evidence
   useEffect(() => {
-    if (selectedEvidence) {
-      const originalBodyOverflow = document.body.style.overflow;
-      const mainEl = document.querySelector('main');
-      const originalMainOverflow = mainEl ? mainEl.style.overflow : '';
-
-      document.body.style.overflow = 'hidden';
-      if (mainEl) {
-        mainEl.style.overflow = 'hidden';
-      }
-
-      return () => {
-        document.body.style.overflow = originalBodyOverflow;
-        if (mainEl) {
-          mainEl.style.overflow = originalMainOverflow;
-        }
-      };
-    }
+    // Intentionally no overflow restriction to allow normal scrolling
   }, [selectedEvidence]);
 
   const handleSubmitDecision = async (e: React.FormEvent) => {
@@ -1138,7 +1123,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                               </span>
                               {evt.details.documents.map((doc: any, dIdx: number) => (
                                 <div key={dIdx} style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                  <span style={{ fontWeight: 700, color: '#1D4ED8', backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', padding: '1px 6px', borderRadius: '4px', fontSize: '0.72rem' }}>
+                                  <span style={{ fontWeight: 600, color: '#60A5FA', backgroundColor: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.35)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.74rem' }}>
                                     {doc.document_type || 'Document'}
                                   </span>
                                   <button
@@ -1154,19 +1139,20 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                                     style={{
                                       background: 'none',
                                       border: 'none',
-                                      padding: 0,
-                                      color: 'var(--color-primary, #FF5A14)',
+                                      padding: '1px 4px',
+                                      color: '#38BDF8',
                                       fontWeight: 600,
                                       textDecoration: 'underline',
                                       cursor: 'pointer',
                                       display: 'inline-flex',
                                       alignItems: 'center',
-                                      gap: '4px',
+                                      gap: '5px',
                                       font: 'inherit',
+                                      borderRadius: '4px',
                                     }}
                                     title="Click to preview document in popup"
                                   >
-                                    <FileText size={12} style={{ flexShrink: 0 }} />
+                                    <FileText size={13} color="#38BDF8" style={{ flexShrink: 0 }} />
                                     <span>{doc.original_filename}</span>
                                   </button>
                                 </div>
@@ -1175,8 +1161,8 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                           )}
 
                           {evt.details.filename && (!evt.details.documents || evt.details.documents.length === 0) && (
-                            <div style={{ color: '#3B82F6', fontSize: '0.78rem', marginTop: '4px' }}>
-                              Document:{' '}
+                            <div style={{ color: 'var(--color-text-secondary)', fontSize: '0.78rem', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>Document:</span>
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -1196,19 +1182,19 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                                 style={{
                                   background: 'none',
                                   border: 'none',
-                                  padding: 0,
-                                  color: 'var(--color-primary, #FF5A14)',
-                                  fontWeight: 700,
+                                  padding: '1px 4px',
+                                  color: '#38BDF8',
+                                  fontWeight: 600,
                                   textDecoration: 'underline',
                                   cursor: 'pointer',
                                   font: 'inherit',
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '4px',
+                                  gap: '5px',
                                 }}
                                 title="Click to preview document in popup"
                               >
-                                <FileText size={12} style={{ flexShrink: 0 }} />
+                                <FileText size={13} color="#38BDF8" style={{ flexShrink: 0 }} />
                                 <span>{evt.details.filename}</span>
                               </button>{' '}
                               {evt.details.notes && `(${evt.details.notes})`}
