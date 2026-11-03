@@ -621,6 +621,23 @@ export const apiClient = {
     return res.json();
   },
 
+    async validateDocumentRelevance(formData: FormData): Promise<{
+    is_relevant: boolean;
+    confidence: number;
+    detected_type: string;
+    reason: string;
+  }> {
+    const res = await fetch(`${API_BASE}/portal/validate-document`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.reason || err.message || 'Document validation check failed');
+    }
+    return res.json();
+  },
+
   async submitPortalEvidence(formData: FormData): Promise<{
     success: boolean;
     submission_reference: string;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   Lock,
@@ -51,7 +51,17 @@ export const EvidenceSubmissionPortal: React.FC = () => {
   const [claimedAmount, setClaimedAmount] = useState('');
   const [paymentMethodDetails, setPaymentMethodDetails] = useState('');
   const [userExplanation, setUserExplanation] = useState('');
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
+
+  // Per-Document Upload Slot State
+  interface DocSlot {
+    file: File | null;
+    validating: boolean;
+    valid: boolean;
+    error: string | null;
+    reason: string | null;
+  }
+  const [docSlots, setDocSlots] = useState<Record<string, DocSlot>>({});
   const [certified, setCertified] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -60,8 +70,7 @@ export const EvidenceSubmissionPortal: React.FC = () => {
   const [submissionReceipt, setSubmissionReceipt] = useState<any | null>(null);
   const [copiedReceipt, setCopiedReceipt] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+
 
   // 1. Initial Token Context Verification
   useEffect(() => {
@@ -186,26 +195,78 @@ export const EvidenceSubmissionPortal: React.FC = () => {
     }
   };
 
-  // File dropzone handlers
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files) return;
-    const incoming = Array.from(e.target.files);
-    setSelectedFiles((prev) => [...prev, ...incoming]);
-    // Reset file input
-    e.target.value = '';
+  // Normalized requested documents list
+  const requestedDocs: { key: string; label: string }[] =
+    portalData?.requested_documents && portalData.requested_documents.length > 0
+      ? portalData.requested_documents.map((d: any, i: number) =>
+          typeof d === 'string'
+            ? { key: `DOC_${i}`, label: d }
+            : { key: d.key || `DOC_${i}`, label: d.label || d.key || `Document ${i + 1}` }
+        )
+      : [{ key: 'SUPPORTING_DOC', label: 'Supporting Evidence Document' }];
+
+  // Slot-specific File Selection & Pre-Upload Relevance Validation
+  const handleSlotFileSelect = async (docKey: string, docLabel: string, file: File) => {
+    setSubmitError(null);
+    setDocSlots((prev) => ({
+      ...prev,
+      [docKey]: { file, validating: true, valid: false, error: null, reason: null },
+    }));
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('doc_type_key', docKey);
+      formData.append('doc_type_label', docLabel);
+
+      const res = await apiClient.validateDocumentRelevance(formData);
+      if (res.is_relevant) {
+        setDocSlots((prev) => ({
+          ...prev,
+          [docKey]: { file, validating: false, valid: true, error: null, reason: res.reason },
+        }));
+      } else {
+        setDocSlots((prev) => ({
+          ...prev,
+          [docKey]: {
+            file: null,
+            validating: false,
+            valid: false,
+            error: res.reason || `The selected file is not relevant to '${docLabel}'. Please upload an authentic ${docLabel}.`,
+            reason: null,
+          },
+        }));
+      }
+    } catch (err: any) {
+      setDocSlots((prev) => ({
+        ...prev,
+        [docKey]: {
+          file: null,
+          validating: false,
+          valid: false,
+          error: err.message || 'Relevance validation check failed. Please check the file format.',
+          reason: null,
+        },
+      }));
+    }
   };
 
-  const handleRemoveFile = (index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  const handleSlotRemoveFile = (docKey: string) => {
+    setDocSlots((prev) => {
+      const copy = { ...prev };
+      delete copy[docKey];
+      return copy;
+    });
   };
 
-  // 4. Submit Evidence Handler
+  // 4. Submit Evidence Handler with Per-Document Association
   const handleSubmitEvidence = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
 
-    if (selectedFiles.length === 0) {
-      setSubmitError('Please attach at least one document or image proof.');
+    const missingDocs = requestedDocs.filter((d) => !docSlots[d.key]?.file || !docSlots[d.key]?.valid);
+    if (missingDocs.length > 0) {
+      setSubmitError(`Please attach and validate all required documents: ${missingDocs.map((m) => m.label).join(', ')}`);
       return;
     }
 
@@ -229,9 +290,15 @@ export const EvidenceSubmissionPortal: React.FC = () => {
       formData.append('payment_method_details', paymentMethodDetails);
       formData.append('user_explanation', userExplanation.trim());
 
-      selectedFiles.forEach((f) => {
-        formData.append('files', f);
+      const docTypesMetadata: Record<string, { key: string; label: string }> = {};
+      requestedDocs.forEach((d) => {
+        const slot = docSlots[d.key];
+        if (slot?.file) {
+          formData.append('files', slot.file);
+          docTypesMetadata[slot.file.name] = { key: d.key, label: d.label };
+        }
       });
+      formData.append('doc_types_metadata', JSON.stringify(docTypesMetadata));
 
       const res = await apiClient.submitPortalEvidence(formData);
       setSubmissionReceipt(res);
@@ -705,162 +772,294 @@ export const EvidenceSubmissionPortal: React.FC = () => {
               </div>
             </div>
 
-            {/* Section 2: Interactive Evidence Dropzone */}
+            {/* Section 2: Interactive Evidence Upload (Separate Box per Required Document Type) */}
             <div style={{ marginBottom: '28px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
                 <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: 0, color: 'var(--color-text-primary, #111827)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <ImageIcon size={18} color="var(--color-primary, #FF5A14)" />
-                  <span>2. Upload Evidence Artifacts (Images & PDFs)</span>
+                  <span>2. Required Evidence Upload ({requestedDocs.length} Document {requestedDocs.length === 1 ? 'Type' : 'Types'})</span>
                 </h3>
                 <span style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary, #6B7280)' }}>
-                  Max 10MB per file (.png, .jpg, .webp, .pdf)
+                  Max 10MB per file (.png, .jpg, .webp, .pdf) ? Pre-upload AI validation active
                 </span>
               </div>
 
-              {/* Dropzone Box */}
-              <div
-                style={{
-                  border: '2px dashed var(--color-border, #CBD5E1)',
-                  borderRadius: '12px',
-                  padding: '28px 20px',
-                  textAlign: 'center',
-                  backgroundColor: 'var(--color-input-background, #F8FAFC)',
-                  cursor: 'pointer',
-                  transition: 'border-color 0.2s ease',
-                }}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <UploadCloud size={38} style={{ color: 'var(--color-primary, #FF5A14)', margin: '0 auto 10px' }} />
-                <p style={{ margin: '0 0 6px', fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-text-primary, #111827)' }}>
-                  Click to browse files or drag and drop here
-                </p>
-                <p style={{ margin: '0 0 16px', fontSize: '0.78rem', color: 'var(--color-text-secondary, #64748B)' }}>
-                  Upload receipts, invoice PDFs, shipping slips, or government ID cards.
-                </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                {requestedDocs.map((doc, idx) => {
+                  const slot = docSlots[doc.key];
+                  const hasFile = !!slot?.file && slot?.valid;
+                  const isValidating = slot?.validating;
+                  const hasError = !!slot?.error;
 
-                {/* Mobile Camera Fast Action */}
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      cameraInputRef.current?.click();
-                    }}
-                    style={{
-                      padding: '8px 14px',
-                      borderRadius: '8px',
-                      backgroundColor: '#FFFFFF',
-                      border: '1px solid var(--color-border, #CBD5E1)',
-                      fontSize: '0.78rem',
-                      fontWeight: 600,
-                      color: 'var(--color-text-primary, #1E293B)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Camera size={14} color="#FF5A14" />
-                    <span>Snap Photo (Camera)</span>
-                  </button>
-                </div>
-
-                {/* Hidden standard file input */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept=".png,.jpg,.jpeg,.webp,.pdf,.docx,.txt"
-                  style={{ display: 'none' }}
-                  onChange={handleFileSelect}
-                />
-
-                {/* Hidden mobile camera capture input */}
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  style={{ display: 'none' }}
-                  onChange={handleFileSelect}
-                />
-              </div>
-
-              {/* Selected Files List with Thumbnails */}
-              {selectedFiles.length > 0 && (
-                <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {selectedFiles.map((file, idx) => {
-                    const isImg = file.type.startsWith('image/');
-                    const previewUrl = isImg ? URL.createObjectURL(file) : null;
-                    const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
-
-                    return (
-                      <div
-                        key={idx}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '10px 14px',
-                          borderRadius: '8px',
-                          backgroundColor: '#FFFFFF',
-                          border: '1px solid var(--color-border, #E2E8F0)',
-                          fontSize: '0.82rem',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                          {previewUrl ? (
-                            <img
-                              src={previewUrl}
-                              alt="preview"
-                              style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }}
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: '40px',
-                                height: '40px',
-                                borderRadius: '6px',
-                                backgroundColor: '#F1F5F9',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                              }}
-                            >
-                              <FileText size={20} color="#64748B" />
-                            </div>
-                          )}
-
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, color: 'var(--color-text-primary, #1E293B)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {file.name}
-                            </div>
-                            <span style={{ fontSize: '0.72rem', color: '#64748B' }}>
-                              {sizeMb} MB · SHA-256 Verified on Upload
+                  return (
+                    <div
+                      key={doc.key || idx}
+                      style={{
+                        borderRadius: '12px',
+                        border: hasError
+                          ? '1.5px solid #FCA5A5'
+                          : hasFile
+                          ? '1.5px solid #86EFAC'
+                          : '1px solid var(--color-border, #CBD5E1)',
+                        backgroundColor: hasError
+                          ? '#FEF2F2'
+                          : hasFile
+                          ? 'rgba(240, 253, 244, 0.6)'
+                          : 'var(--color-surface, #FFFFFF)',
+                        padding: '18px 20px',
+                        boxShadow: 'var(--shadow-sm)',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      {/* Box Header */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div
+                            style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '6px',
+                              backgroundColor: hasFile ? '#DCFCE7' : '#EFF6FF',
+                              color: hasFile ? '#16A34A' : '#2563EB',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 700,
+                              fontSize: '0.8rem',
+                            }}
+                          >
+                            {idx + 1}
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-text-primary, #111827)' }}>
+                              {doc.label}
                             </span>
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFile(idx)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#EF4444',
-                            cursor: 'pointer',
-                            padding: '6px',
-                          }}
-                          title="Remove file"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {/* Status Badge */}
+                        <div>
+                          {isValidating ? (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#2563EB', backgroundColor: '#EFF6FF', padding: '3px 8px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <RefreshCw size={11} className="animate-spin" /> Validating Relevance...
+                            </span>
+                          ) : hasFile ? (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803D', backgroundColor: '#DCFCE7', padding: '3px 8px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <CheckCircle2 size={12} /> Verified &amp; Attached
+                            </span>
+                          ) : hasError ? (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#B91C1C', backgroundColor: '#FEE2E2', padding: '3px 8px', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <AlertTriangle size={12} /> Irrelevant File
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#B45309', backgroundColor: '#FEF3C7', padding: '3px 8px', borderRadius: '12px' }}>
+                              Required Upload
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+
+                      {/* Error Message if rejected */}
+                      {hasError && (
+                        <div
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            backgroundColor: '#FFFFFF',
+                            border: '1px solid #FCA5A5',
+                            color: '#B91C1C',
+                            fontSize: '0.78rem',
+                            marginBottom: '12px',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '8px',
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          <AlertCircle size={16} color="#DC2626" style={{ flexShrink: 0, marginTop: '2px' }} />
+                          <div>
+                            <strong>Validation Notice: </strong>
+                            <span>{slot.error}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Attached File Preview Card */}
+                      {hasFile && slot.file ? (
+                        <div
+                          style={{
+                            padding: '12px 16px',
+                            borderRadius: '8px',
+                            backgroundColor: '#FFFFFF',
+                            border: '1px solid #BBF7D0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '12px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                            {slot.file.type.startsWith('image/') ? (
+                              <img
+                                src={URL.createObjectURL(slot.file)}
+                                alt="preview"
+                                style={{ width: '42px', height: '42px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0, border: '1px solid #E2E8F0' }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: '42px',
+                                  height: '42px',
+                                  borderRadius: '6px',
+                                  backgroundColor: '#F1F5F9',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <FileText size={22} color="#059669" />
+                              </div>
+                            )}
+
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {slot.file.name}
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                <span>{(slot.file.size / (1024 * 1024)).toFixed(2)} MB</span>
+                                {slot.reason && <span>? {slot.reason}</span>}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const input = document.getElementById(`slot-file-input-${doc.key}`) as HTMLInputElement;
+                                if (input) input.click();
+                              }}
+                              style={{
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                backgroundColor: '#F8FAFC',
+                                border: '1px solid #CBD5E1',
+                                fontSize: '0.74rem',
+                                fontWeight: 600,
+                                color: '#334155',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Replace
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleSlotRemoveFile(doc.key)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#EF4444',
+                                cursor: 'pointer',
+                                padding: '6px',
+                              }}
+                              title="Remove file"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Dropzone for this slot */
+                        <div
+                          style={{
+                            border: '1.5px dashed var(--color-border, #CBD5E1)',
+                            borderRadius: '8px',
+                            padding: '18px',
+                            textAlign: 'center',
+                            backgroundColor: 'var(--color-input-background, #F8FAFC)',
+                            cursor: isValidating ? 'wait' : 'pointer',
+                            transition: 'border-color 0.2s ease',
+                          }}
+                          onClick={() => {
+                            if (!isValidating) {
+                              const input = document.getElementById(`slot-file-input-${doc.key}`) as HTMLInputElement;
+                              if (input) input.click();
+                            }
+                          }}
+                        >
+                          <UploadCloud size={30} style={{ color: 'var(--color-primary, #FF5A14)', margin: '0 auto 6px' }} />
+                          <p style={{ margin: '0 0 4px', fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text-primary, #111827)' }}>
+                            Click to upload {doc.label} or drag and drop here
+                          </p>
+                          <p style={{ margin: '0 0 10px', fontSize: '0.74rem', color: 'var(--color-text-secondary, #64748B)' }}>
+                            Supports PNG, JPG, WEBP, PDF (Max 10MB)
+                          </p>
+
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const cam = document.getElementById(`slot-camera-input-${doc.key}`) as HTMLInputElement;
+                                if (cam) cam.click();
+                              }}
+                              disabled={isValidating}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                backgroundColor: '#FFFFFF',
+                                border: '1px solid var(--color-border, #CBD5E1)',
+                                fontSize: '0.74rem',
+                                fontWeight: 600,
+                                color: 'var(--color-text-primary, #1E293B)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                cursor: isValidating ? 'wait' : 'pointer',
+                              }}
+                            >
+                              <Camera size={13} color="#FF5A14" />
+                              <span>Snap Photo</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Hidden slot file input */}
+                      <input
+                        id={`slot-file-input-${doc.key}`}
+                        type="file"
+                        accept=".png,.jpg,.jpeg,.webp,.pdf,.docx,.txt"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleSlotFileSelect(doc.key, doc.label, e.target.files[0]);
+                          }
+                          e.target.value = '';
+                        }}
+                      />
+
+                      {/* Hidden slot camera input */}
+                      <input
+                        id={`slot-camera-input-${doc.key}`}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleSlotFileSelect(doc.key, doc.label, e.target.files[0]);
+                          }
+                          e.target.value = '';
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Section 3: Legal Certification Checkbox */}
@@ -911,10 +1110,10 @@ export const EvidenceSubmissionPortal: React.FC = () => {
             <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
               <button
                 type="submit"
-                disabled={submitting || selectedFiles.length === 0 || !certified}
+                disabled={submitting || Object.values(docSlots).filter((s) => s.file && s.valid).length === 0 || !certified}
                 style={{
                   ...primaryButtonStyle,
-                  opacity: submitting || selectedFiles.length === 0 || !certified ? 0.6 : 1,
+                  opacity: submitting || Object.values(docSlots).filter((s) => s.file && s.valid).length === 0 || !certified ? 0.6 : 1,
                 }}
               >
                 {submitting ? (
@@ -991,7 +1190,7 @@ export const EvidenceSubmissionPortal: React.FC = () => {
               <div style={{ borderTop: '1px solid var(--color-border, #E5E7EB)', paddingTop: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem' }}>
                 <div>
                   <span style={{ color: 'var(--color-text-secondary, #6B7280)' }}>Items Received: </span>
-                  <strong>{submissionReceipt?.items_submitted_count || selectedFiles.length} files + statement</strong>
+                  <strong>{submissionReceipt?.items_submitted_count || Object.values(docSlots).filter((s) => s.file).length} files + statement</strong>
                 </div>
                 <div>
                   <span style={{ color: 'var(--color-text-secondary, #6B7280)' }}>Case Status: </span>

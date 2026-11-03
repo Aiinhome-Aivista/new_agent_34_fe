@@ -5,7 +5,6 @@ import {
   CheckCircle,
   Network,
   Send,
-  UploadCloud,
   FileText,
   Image as ImageIcon,
   Eye,
@@ -53,22 +52,55 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
 
-  // Evidence Upload State
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadNotes, setUploadNotes] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+
 
   // Lightbox Modal State
   const [selectedEvidence, setSelectedEvidence] = useState<any | null>(null);
 
   // Customer Evidence Request (Portal) State
-  const [requestMethod, setRequestMethod] = useState<'EMAIL_LINK' | 'DIRECT_UPLOAD'>('EMAIL_LINK');
+
   const [customerReqReason, setCustomerReqReason] = useState('Additional supporting documentation required for fraud verification.');
-  const [reqDocGovtId, setReqDocGovtId] = useState(true);
-  const [reqDocInvoice, setReqDocInvoice] = useState(true);
-  const [reqDocPaymentProof, setReqDocPaymentProof] = useState(true);
-  const [reqDocDeliveryProof, setReqDocDeliveryProof] = useState(false);
+  // Dynamic Required Document Types State (Persona: Admin / Investigator)
+  interface ReqDocItem {
+    key: string;
+    label: string;
+    selected: boolean;
+    isCustom?: boolean;
+  }
+
+  const [reqDocList, setReqDocList] = useState<ReqDocItem[]>([
+    { key: 'GOVT_ID', label: 'Government Photo ID', selected: true },
+    { key: 'TAX_INVOICE', label: 'Tax Invoice / Receipt', selected: true },
+    { key: 'PAYMENT_PROOF', label: 'Bank Statement / Card Slip', selected: true },
+    { key: 'DELIVERY_PROOF', label: 'Proof of Delivery', selected: false },
+  ]);
+  const [customDocName, setCustomDocName] = useState('');
+
+  const canManageDocTypes =
+    currentUser?.role === 'ADMIN' ||
+    (currentUser?.role && currentUser.role.includes('INVESTIGATOR'));
+
+  const handleAddCustomDocType = () => {
+    if (!customDocName.trim()) return;
+    const name = customDocName.trim();
+    const key = `CUSTOM_${name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_${Date.now()}`;
+    setReqDocList((prev) => [
+      ...prev,
+      { key, label: name, selected: true, isCustom: true },
+    ]);
+    setCustomDocName('');
+  };
+
+  const handleRemoveCustomDocType = (keyToRemove: string) => {
+    setReqDocList((prev) => prev.filter((d) => d.key !== keyToRemove));
+  };
+
+  const handleToggleDocType = (key: string) => {
+    setReqDocList((prev) =>
+      prev.map((d) => (d.key === key ? { ...d, selected: !d.selected } : d))
+    );
+  };
+
   const [reqExpiryHours, setReqExpiryHours] = useState(48);
   const [dispatchingPortalReq, setDispatchingPortalReq] = useState(false);
   const [portalDispatchResult, setPortalDispatchResult] = useState<any | null>(null);
@@ -138,11 +170,11 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
       'Portal Dispatcher'
     );
     try {
-      const docs = [];
-      if (reqDocGovtId) docs.push({ key: 'GOVT_ID', label: 'Government Issued Photo ID (Passport / License / National ID)' });
-      if (reqDocInvoice) docs.push({ key: 'TAX_INVOICE', label: 'Purchase Invoice / Merchant Receipt' });
-      if (reqDocPaymentProof) docs.push({ key: 'PAYMENT_PROOF', label: 'Bank Statement / Card Statement Slip' });
-      if (reqDocDeliveryProof) docs.push({ key: 'DELIVERY_PROOF', label: 'Proof of Delivery / Courier Tracking' });
+      const docs = reqDocList.filter((d) => d.selected).map((d) => ({ key: d.key, label: d.label }));
+      if (docs.length === 0) {
+        alert('Please select at least one required document type.');
+        return;
+      }
 
       const res = await apiClient.requestEvidenceFromCustomer(caseId, {
         reviewer_id: currentUser?.id || currentUser?.email || 'ANALYST_01',
@@ -168,41 +200,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
     setTimeout(() => setCopiedPortalLink(false), 2500);
   };
 
-  const handleEvidenceUploadSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!uploadFile) {
-      alert('Please select an image (.png, .jpg) or document (.pdf) to upload.');
-      return;
-    }
 
-    setUploading(true);
-    setUploadSuccess(null);
-    showLoader(
-      'Uploading Forensic Evidence Artifact',
-      `Persisting evidence document and attaching to Case #${caseId}...`,
-      'Evidence Vault'
-    );
-    try {
-      const formData = new FormData();
-      formData.append('file', uploadFile);
-      if (uploadNotes) formData.append('notes', uploadNotes);
-      formData.append('reviewer_id', currentUser?.id || currentUser?.email || 'ANALYST_UPLOAD');
-
-      const res = await apiClient.uploadCaseEvidence(caseId, formData);
-      setUploadSuccess(`Evidence document '${res.evidence?.source_reference || uploadFile.name}' attached successfully.`);
-      setUploadFile(null);
-      setUploadNotes('');
-      // Reset input element
-      const fileInput = document.getElementById('evidence-file-input') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
-      await loadCase();
-    } catch (err: any) {
-      alert(`Evidence upload failed: ${err.message}`);
-    } finally {
-      setUploading(false);
-      hideLoader();
-    }
-  };
 
   if (loading) {
     return (
@@ -408,12 +406,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
         </div>
       )}
 
-      {uploadSuccess && (
-        <div style={{ padding: '14px 18px', backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid #3B82F6', color: '#3B82F6', borderRadius: 'var(--radius-sm)', marginBottom: '20px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <UploadCloud size={18} />
-          <span>{uploadSuccess}</span>
-        </div>
-      )}
+      
 
       {/* Main Forensic Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px', marginBottom: '28px' }}>
@@ -503,191 +496,274 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                 </select>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Policy Reference Clause
-                </label>
-                <input
-                  type="text"
-                  value={policyRef}
-                  onChange={(e) => setPolicyRef(e.target.value)}
-                  placeholder="e.g. FRAUD_SOP_04_USER_LOCK"
-                  style={{ width: '100%' }}
-                />
-              </div>
+              {/* Requirement 1: When REQUEST_EVIDENCE is selected, hide Policy Ref, Mandatory Audit Rationale, and Commit Button */}
+              {decision !== 'REQUEST_EVIDENCE' && (
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Policy Reference Clause
+                    </label>
+                    <input
+                      type="text"
+                      value={policyRef}
+                      onChange={(e) => setPolicyRef(e.target.value)}
+                      placeholder="e.g. FRAUD_SOP_04_USER_LOCK"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Mandatory Audit Rationale (Recorded with User ID)
-                </label>
-                <textarea
-                  rows={3}
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Document the exact basis for this decision (persisted in immutable audit trail)..."
-                  style={{ width: '100%' }}
-                />
-              </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Mandatory Audit Rationale (Recorded with User ID)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                      placeholder="Document the exact basis for this decision (persisted in immutable audit trail)..."
+                      style={{ width: '100%' }}
+                    />
+                  </div>
 
-              <Button
-                type="submit"
-                disabled={submitting}
-                variant={decision === 'LOCK_USER' ? 'primary' : 'secondary'}
-                icon={
-                  submitting ? (
-                    <RefreshCw size={15} className="animate-spin" />
-                  ) : decision === 'LOCK_USER' ? (
-                    <UserX size={15} />
-                  ) : decision === 'UNLOCK_USER' ? (
-                    <UserCheck size={15} />
-                  ) : decision === 'ESCALATE' ? (
-                    <ShieldAlert size={15} />
-                  ) : (
-                    <Send size={15} />
-                  )
-                }
-              >
-                {submitting ? 'Recording Decision...' : `Commit Decision: ${decision.replace('_', ' ')}`}
-              </Button>
+                  <Button
+                    type="submit"
+                    disabled={submitting}
+                    variant={decision === 'LOCK_USER' ? 'primary' : 'secondary'}
+                    icon={
+                      submitting ? (
+                        <RefreshCw size={15} className="animate-spin" />
+                      ) : decision === 'LOCK_USER' ? (
+                        <UserX size={15} />
+                      ) : decision === 'UNLOCK_USER' ? (
+                        <UserCheck size={15} />
+                      ) : decision === 'ESCALATE' ? (
+                        <ShieldAlert size={15} />
+                      ) : (
+                        <Send size={15} />
+                      )
+                    }
+                  >
+                    {submitting ? 'Recording Decision...' : `Commit Decision: ${decision.replace('_', ' ')}`}
+                  </Button>
+                </>
+              )}
             </form>
 
-            {/* Evidence Request Panel when REQUEST_EVIDENCE is selected */}
+            {/* Requirement 1: Only show Send Customer Email Link section when REQUEST_EVIDENCE is selected */}
             {decision === 'REQUEST_EVIDENCE' && (
               <div
                 style={{
-                  marginTop: '20px',
+                  marginTop: '16px',
                   padding: '18px',
                   borderRadius: 'var(--radius-md)',
                   backgroundColor: 'rgba(59, 130, 246, 0.05)',
                   border: '1px solid rgba(59, 130, 246, 0.25)',
                 }}
               >
-                {/* Method Switcher Tabs */}
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setRequestMethod('EMAIL_LINK')}
-                    style={{
-                      padding: '8px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid',
-                      borderColor: requestMethod === 'EMAIL_LINK' ? '#2563EB' : 'var(--color-border)',
-                      backgroundColor: requestMethod === 'EMAIL_LINK' ? '#2563EB' : 'var(--color-surface)',
-                      color: requestMethod === 'EMAIL_LINK' ? '#FFFFFF' : 'var(--color-text-secondary)',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}
-                  >
-                    <Mail size={14} />
-                    <span>Send Customer Email Link</span>
-                  </button>
+                <form onSubmit={handleDispatchEvidenceRequest} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: 700, color: '#1E40AF' }}>
+                    <ShieldCheck size={18} color="#2563EB" />
+                    <span>Send Customer Evidence Request Link</span>
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setRequestMethod('DIRECT_UPLOAD')}
-                    style={{
-                      padding: '8px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid',
-                      borderColor: requestMethod === 'DIRECT_UPLOAD' ? '#2563EB' : 'var(--color-border)',
-                      backgroundColor: requestMethod === 'DIRECT_UPLOAD' ? '#2563EB' : 'var(--color-surface)',
-                      color: requestMethod === 'DIRECT_UPLOAD' ? '#FFFFFF' : 'var(--color-text-secondary)',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}
-                  >
-                    <UploadCloud size={14} />
-                    <span>Analyst Direct Upload</span>
-                  </button>
-                </div>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                    Dispatches a time-bound, cryptographically signed magic link to the account holder's registered email. The customer must pass an OTP identity challenge before submitting separate documents for each requested document type.
+                  </p>
 
-                {requestMethod === 'EMAIL_LINK' ? (
-                  <form onSubmit={handleDispatchEvidenceRequest} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: 700, color: '#1E40AF' }}>
-                      <ShieldCheck size={18} color="#2563EB" />
-                      <span>One-Page Customer Evidence Submission Portal</span>
-                    </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px' }}>
+                      Reason / Instructions to Customer
+                    </label>
+                    <input
+                      type="text"
+                      value={customerReqReason}
+                      onChange={(e) => setCustomerReqReason(e.target.value)}
+                      placeholder="e.g. Identity and invoice proof required for fraud verification"
+                      style={{ width: '100%', fontSize: '0.82rem' }}
+                    />
+                  </div>
 
-                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-                      Dispatches a time-bound, cryptographically signed magic link to the account holder's registered email. The customer must pass an OTP identity challenge before submitting images and transaction statements.
-                    </p>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px' }}>
-                        Reason / Instructions to Customer
-                      </label>
-                      <input
-                        type="text"
-                        value={customerReqReason}
-                        onChange={(e) => setCustomerReqReason(e.target.value)}
-                        placeholder="e.g. Identity and invoice proof required for high-value transaction"
-                        style={{ width: '100%', fontSize: '0.82rem' }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px' }}>
+                  {/* Requirement 2: Required Document Types (Admin / Investigator can add custom types) */}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700 }}>
                         Required Document Types
                       </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                          <input type="checkbox" checked={reqDocGovtId} onChange={(e) => setReqDocGovtId(e.target.checked)} />
-                          <span>Government Photo ID</span>
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                          <input type="checkbox" checked={reqDocInvoice} onChange={(e) => setReqDocInvoice(e.target.checked)} />
-                          <span>Tax Invoice / Receipt</span>
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                          <input type="checkbox" checked={reqDocPaymentProof} onChange={(e) => setReqDocPaymentProof(e.target.checked)} />
-                          <span>Bank / Card Slip</span>
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                          <input type="checkbox" checked={reqDocDeliveryProof} onChange={(e) => setReqDocDeliveryProof(e.target.checked)} />
-                          <span>Proof of Delivery</span>
-                        </label>
+                      {canManageDocTypes && (
+                        <span style={{ fontSize: '0.7rem', color: '#2563EB', fontWeight: 600 }}>
+                          {currentUser?.role?.replace(/_/g, ' ')}: Custom Types Enabled
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem', marginBottom: '10px' }}>
+                      {reqDocList.map((doc) => (
+                        <div
+                          key={doc.key}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            backgroundColor: doc.selected ? 'rgba(59, 130, 246, 0.08)' : 'var(--color-surface)',
+                            border: `1px solid ${doc.selected ? '#93C5FD' : 'var(--color-border)'}`,
+                          }}
+                        >
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', flex: 1, minWidth: 0 }}>
+                            <input
+                              type="checkbox"
+                              checked={doc.selected}
+                              onChange={() => handleToggleDocType(doc.key)}
+                            />
+                            <span style={{ fontWeight: doc.selected ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {doc.label}
+                            </span>
+                          </label>
+
+                          {doc.isCustom && canManageDocTypes && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCustomDocType(doc.key)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: '#EF4444',
+                                cursor: 'pointer',
+                                padding: '2px',
+                                marginLeft: '4px',
+                              }}
+                              title="Delete custom document type"
+                            >
+                              <X size={13} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Admin / Investigator "+ Add Document Type" Input */}
+                    {canManageDocTypes && (
+                      <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+                        <input
+                          type="text"
+                          value={customDocName}
+                          onChange={(e) => setCustomDocName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddCustomDocType();
+                            }
+                          }}
+                          placeholder="Add custom document type (e.g. Utility Bill, Affidavit, Salary Slip)..."
+                          style={{ flex: 1, fontSize: '0.78rem', padding: '6px 10px' }}
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleAddCustomDocType}
+                          disabled={!customDocName.trim()}
+                        >
+                          + Add Type
+                        </Button>
                       </div>
-                    </div>
+                    )}
+                  </div>
 
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px' }}>
-                        Link Validity Duration
-                      </label>
-                      <select
-                        value={reqExpiryHours}
-                        onChange={(e) => setReqExpiryHours(Number(e.target.value))}
-                        style={{ width: '100%', fontSize: '0.82rem' }}
-                      >
-                        <option value={24}>24 Hours</option>
-                        <option value={48}>48 Hours (Recommended)</option>
-                        <option value={72}>72 Hours</option>
-                        <option value={168}>7 Days</option>
-                      </select>
-                    </div>
-
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      size="sm"
-                      disabled={dispatchingPortalReq}
-                      icon={dispatchingPortalReq ? <RefreshCw size={14} className="animate-spin" /> : <Mail size={14} />}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px' }}>
+                      Link Validity Duration
+                    </label>
+                    <select
+                      value={reqExpiryHours}
+                      onChange={(e) => setReqExpiryHours(Number(e.target.value))}
+                      style={{ width: '100%', fontSize: '0.82rem' }}
                     >
-                      {dispatchingPortalReq ? 'Dispatching...' : 'Dispatch Email Link to Customer'}
-                    </Button>
+                      <option value={24}>24 Hours</option>
+                      <option value={48}>48 Hours (Recommended)</option>
+                      <option value={72}>72 Hours</option>
+                      <option value={168}>7 Days</option>
+                    </select>
+                  </div>
 
-                    {/* Dispatched Link Success Box */}
-                    {portalDispatchResult && (
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    disabled={dispatchingPortalReq}
+                    icon={dispatchingPortalReq ? <RefreshCw size={14} className="animate-spin" /> : <Mail size={14} />}
+                  >
+                    {dispatchingPortalReq ? 'Dispatching...' : 'Dispatch Email Link to Customer'}
+                  </Button>
+
+                  {/* Requirement 4: Hide copy link / open as customer if already uploaded; show up to expiry if not uploaded */}
+                  {(() => {
+                    const isCustomerEvidenceUploaded =
+                      (caseData?.evidence_items || []).some(
+                        (ev: any) =>
+                          ev.source_system === 'CUSTOMER_EVIDENCE_PORTAL' ||
+                          (ev.evidence_type && ev.evidence_type.startsWith('USER_PORTAL'))
+                      ) || (existingRequests || []).some((r: any) => r.status === 'SUBMITTED');
+
+                    const latestReq = (existingRequests || [])[0] || portalDispatchResult;
+                    const targetExpiry = portalDispatchResult?.expires_at || latestReq?.expires_at;
+                    const isLinkExpired = targetExpiry ? new Date(targetExpiry).getTime() <= Date.now() : false;
+                    const targetPortalUrl = portalDispatchResult?.portal_url;
+
+                    if (isCustomerEvidenceUploaded) {
+                      return (
+                        <div
+                          style={{
+                            marginTop: '12px',
+                            padding: '12px 14px',
+                            borderRadius: '8px',
+                            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            fontSize: '0.8rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            color: '#065F46',
+                            fontWeight: 600,
+                          }}
+                        >
+                          <CheckCircle size={16} color="#10B981" />
+                          <span>Customer evidence has been uploaded. Submission portal link is now closed.</span>
+                        </div>
+                      );
+                    }
+
+                    if (!portalDispatchResult && !latestReq) return null;
+
+                    if (isLinkExpired) {
+                      return (
+                        <div
+                          style={{
+                            marginTop: '12px',
+                            padding: '12px 14px',
+                            borderRadius: '8px',
+                            backgroundColor: 'rgba(239, 68, 68, 0.06)',
+                            border: '1px solid rgba(239, 68, 68, 0.25)',
+                            fontSize: '0.8rem',
+                            color: '#991B1B',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                          }}
+                        >
+                          <Clock size={16} color="#DC2626" />
+                          <span>
+                            Evidence request link expired on {new Date(targetExpiry).toLocaleString()}. Dispatch a new link to extend.
+                          </span>
+                        </div>
+                      );
+                    }
+
+                    return (
                       <div
                         style={{
-                          marginTop: '10px',
+                          marginTop: '12px',
                           padding: '14px',
                           borderRadius: '8px',
                           backgroundColor: 'rgba(16, 185, 129, 0.08)',
@@ -697,72 +773,47 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#065F46', fontWeight: 700, marginBottom: '6px' }}>
                           <CheckCircle size={16} color="#10B981" />
-                          <span>Evidence Request Dispatched to {portalDispatchResult.recipient_email}</span>
+                          <span>
+                            Evidence Request Dispatched {portalDispatchResult?.recipient_email ? `to ${portalDispatchResult.recipient_email}` : ''}
+                          </span>
                         </div>
                         <div style={{ fontSize: '0.74rem', color: '#047857', marginBottom: '8px' }}>
-                          Link valid until: <strong>{new Date(portalDispatchResult.expires_at).toLocaleString()}</strong>
+                          Link valid until: <strong>{new Date(targetExpiry).toLocaleString()}</strong>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={handleCopyPortalLink}
-                            icon={copiedPortalLink ? <Check size={14} color="#10B981" /> : <Copy size={14} />}
-                          >
-                            {copiedPortalLink ? 'Link Copied!' : 'Copy Portal Link'}
-                          </Button>
-
-                          <a
-                            href={portalDispatchResult.portal_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ textDecoration: 'none' }}
-                          >
+                        {targetPortalUrl && (
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             <Button
                               type="button"
-                              variant="primary"
+                              variant="secondary"
                               size="sm"
-                              icon={<ExternalLink size={14} />}
+                              onClick={handleCopyPortalLink}
+                              icon={copiedPortalLink ? <Check size={14} color="#10B981" /> : <Copy size={14} />}
                             >
-                              Open Portal as Customer
+                              {copiedPortalLink ? 'Link Copied!' : 'Copy Portal Link'}
                             </Button>
-                          </a>
-                        </div>
+
+                            <a
+                              href={targetPortalUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ textDecoration: 'none' }}
+                            >
+                              <Button
+                                type="button"
+                                variant="primary"
+                                size="sm"
+                                icon={<ExternalLink size={14} />}
+                              >
+                                Open Portal as Customer
+                              </Button>
+                            </a>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </form>
-                ) : (
-                  <form onSubmit={handleEvidenceUploadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.85rem', color: '#3B82F6', marginBottom: '4px' }}>
-                      <UploadCloud size={16} />
-                      <span>Direct Document Attachment by Analyst</span>
-                    </div>
-                    <input
-                      id="evidence-file-input"
-                      type="file"
-                      accept=".png,.jpg,.jpeg,.webp,.pdf,.docx,.txt"
-                      onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
-                      style={{ fontSize: '0.82rem' }}
-                    />
-                    <input
-                      type="text"
-                      value={uploadNotes}
-                      onChange={(e) => setUploadNotes(e.target.value)}
-                      placeholder="Document description / notes"
-                      style={{ width: '100%', fontSize: '0.82rem' }}
-                    />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={uploading || !uploadFile}
-                      icon={uploading ? <RefreshCw size={14} className="animate-spin" /> : <UploadCloud size={14} />}
-                    >
-                      {uploading ? 'Uploading Evidence...' : 'Upload & Attach to Case'}
-                    </Button>
-                  </form>
-                )}
+                    );
+                  })()}
+                </form>
 
                 {/* Existing Evidence Requests History */}
                 {existingRequests && existingRequests.length > 0 && (
@@ -788,7 +839,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                           <div>
                             <span style={{ fontWeight: 600 }}>{req.request_reason}</span>
                             <span style={{ color: 'var(--color-text-secondary)', marginLeft: '8px' }}>
-                              · {new Date(req.created_at).toLocaleDateString()}
+                              ? {new Date(req.created_at).toLocaleDateString()}
                             </span>
                           </div>
                           <Badge type={req.status}>{req.status}</Badge>
@@ -1095,9 +1146,75 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                               Action Executed: {evt.details.action_type}
                             </div>
                           )}
-                          {evt.details.filename && (
-                            <div style={{ color: '#3B82F6', fontSize: '0.78rem' }}>
-                              Document: <strong>{evt.details.filename}</strong> {evt.details.notes && `(${evt.details.notes})`}
+                          {/* Requirement 5: Document Type with Hyperlinked Document Name */}
+                          {evt.details.documents && evt.details.documents.length > 0 && (
+                            <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                                Attached Evidence Documents:
+                              </span>
+                              {evt.details.documents.map((doc: any, dIdx: number) => (
+                                <div key={dIdx} style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <span style={{ fontWeight: 700, color: '#1D4ED8', backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', padding: '1px 6px', borderRadius: '4px', fontSize: '0.72rem' }}>
+                                    {doc.document_type || 'Document'}
+                                  </span>
+                                  <a
+                                    href="#"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      setSelectedEvidence({
+                                        source_reference: doc.original_filename || 'Evidence Document',
+                                        evidence_type: doc.document_type || 'Evidence Document',
+                                        normalized_payload: doc,
+                                      });
+                                    }}
+                                    style={{
+                                      color: 'var(--color-primary, #FF5A14)',
+                                      fontWeight: 600,
+                                      textDecoration: 'underline',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                    }}
+                                    title="Click to preview document in popup"
+                                  >
+                                    <span>?? {doc.original_filename}</span>
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {evt.details.filename && (!evt.details.documents || evt.details.documents.length === 0) && (
+                            <div style={{ color: '#3B82F6', fontSize: '0.78rem', marginTop: '4px' }}>
+                              Document:{' '}
+                              <a
+                                href="#"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setSelectedEvidence({
+                                    source_reference: evt.details.filename,
+                                    evidence_type: evt.details.notes || 'Evidence Document',
+                                    normalized_payload: {
+                                      original_filename: evt.details.filename,
+                                      saved_filename: evt.details.saved_filename,
+                                      file_url: `/api/v1/investigations/${caseId}/evidence-file/${evt.details.saved_filename || evt.details.filename}`,
+                                      is_image: /\.(png|jpe?g|webp)$/i.test(evt.details.filename),
+                                      notes: evt.details.notes,
+                                    },
+                                  });
+                                }}
+                                style={{
+                                  color: 'var(--color-primary, #FF5A14)',
+                                  fontWeight: 700,
+                                  textDecoration: 'underline',
+                                  cursor: 'pointer',
+                                }}
+                                title="Click to preview document in popup"
+                              >
+                                {evt.details.filename}
+                              </a>{' '}
+                              {evt.details.notes && `(${evt.details.notes})`}
                             </div>
                           )}
                         </div>
