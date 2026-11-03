@@ -117,7 +117,17 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
       const auditRes = await apiClient.getAuditEvents(caseId);
       setAuditEvents(auditRes.events || auditRes.items || []);
       const reqRes = await apiClient.getCaseEvidenceRequests(caseId).catch(() => ({ items: [] }));
-      setExistingRequests(reqRes.items || []);
+      const items = reqRes.items || [];
+      setExistingRequests(items);
+
+      // If active portalDispatchResult has been submitted by customer, clear it so UI hides the dispatched link
+      if (portalDispatchResult && items.some((r: any) => r.id === portalDispatchResult.request_id && r.status === 'SUBMITTED')) {
+        setPortalDispatchResult(null);
+      }
+
+      if (shouldShowFullLoader && data?.status === 'COLLECTING_EVIDENCE') {
+        setDecision('REQUEST_EVIDENCE');
+      }
     } catch (err: any) {
       setError(err.message || 'Could not load case details');
     } finally {
@@ -128,6 +138,20 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
   useEffect(() => {
     loadCase();
   }, [caseId]);
+
+  // Auto-detect when customer uploads evidence from portal to immediately hide link and refresh case data
+  useEffect(() => {
+    const isCollecting = caseData?.status === 'COLLECTING_EVIDENCE';
+    const hasActivePendingReq = portalDispatchResult || (existingRequests || []).some((r: any) => r.status === 'ISSUED');
+
+    if (!isCollecting && !hasActivePendingReq) return;
+
+    const interval = setInterval(() => {
+      loadCase(false);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [caseData?.status, portalDispatchResult, existingRequests]);
 
   // Natural scrolling preserved - scrolling is not removed when viewing evidence
   useEffect(() => {
@@ -189,6 +213,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
       });
 
       setPortalDispatchResult(res);
+      setCustomerReqReason('');
       await loadCase(false);
     } catch (err: any) {
       alert(`Failed to dispatch evidence request: ${err.message}`);
@@ -197,9 +222,10 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
     }
   };
 
-  const handleCopyPortalLink = () => {
-    if (!portalDispatchResult?.portal_url) return;
-    navigator.clipboard.writeText(portalDispatchResult.portal_url);
+  const handleCopyPortalLink = (urlToCopy?: string) => {
+    const target = (typeof urlToCopy === 'string' && urlToCopy) ? urlToCopy : portalDispatchResult?.portal_url;
+    if (!target) return;
+    navigator.clipboard.writeText(target);
     setCopiedPortalLink(true);
     setTimeout(() => setCopiedPortalLink(false), 2500);
   };
@@ -701,68 +727,25 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                     {dispatchingPortalReq ? 'Dispatching...' : 'Dispatch Email Link to Customer'}
                   </Button>
 
-                  {/* Requirement 4: Hide copy link / open as customer if already uploaded; show up to expiry if not uploaded */}
+                  {/* Newly Dispatched Evidence Request Link (shown only after clicking "Dispatch Email Link to Customer", hidden once uploaded by user) */}
                   {(() => {
-                    const isCustomerEvidenceUploaded =
-                      (caseData?.evidence_items || []).some(
-                        (ev: any) =>
-                          ev.source_system === 'CUSTOMER_EVIDENCE_PORTAL' ||
-                          (ev.evidence_type && ev.evidence_type.startsWith('USER_PORTAL'))
-                      ) || (existingRequests || []).some((r: any) => r.status === 'SUBMITTED');
+                    if (!portalDispatchResult) return null;
 
-                    const latestReq = (existingRequests || [])[0] || portalDispatchResult;
-                    const targetExpiry = portalDispatchResult?.expires_at || latestReq?.expires_at;
-                    const isLinkExpired = targetExpiry ? new Date(targetExpiry).getTime() <= Date.now() : false;
-                    const targetPortalUrl = portalDispatchResult?.portal_url;
+                    // Check if this request has already been submitted by the customer
+                    const matchedReq = (existingRequests || []).find(
+                      (r: any) => r.id === portalDispatchResult?.request_id
+                    ) || (existingRequests && existingRequests.length > 0 ? existingRequests[0] : null);
 
-                    if (isCustomerEvidenceUploaded) {
-                      return (
-                        <div
-                          style={{
-                            marginTop: '12px',
-                            padding: '12px 14px',
-                            borderRadius: '8px',
-                            backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                            border: '1px solid rgba(16, 185, 129, 0.3)',
-                            fontSize: '0.8rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            color: '#065F46',
-                            fontWeight: 600,
-                          }}
-                        >
-                          <CheckCircle size={16} color="#10B981" />
-                          <span>Customer evidence has been uploaded. Submission portal link is now closed.</span>
-                        </div>
-                      );
-                    }
+                    const isSubmitted = matchedReq?.status === 'SUBMITTED';
 
-                    if (!portalDispatchResult && !latestReq) return null;
+                    // Requirement: Once uploaded by the user, hide this portion from UI
+                    if (isSubmitted) return null;
 
-                    if (isLinkExpired) {
-                      return (
-                        <div
-                          style={{
-                            marginTop: '12px',
-                            padding: '12px 14px',
-                            borderRadius: '8px',
-                            backgroundColor: 'rgba(239, 68, 68, 0.06)',
-                            border: '1px solid rgba(239, 68, 68, 0.25)',
-                            fontSize: '0.8rem',
-                            color: '#991B1B',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                          }}
-                        >
-                          <Clock size={16} color="#DC2626" />
-                          <span>
-                            Evidence request link expired on {new Date(targetExpiry).toLocaleString()}. Dispatch a new link to extend.
-                          </span>
-                        </div>
-                      );
-                    }
+                    const isExpired = portalDispatchResult.expires_at
+                      ? new Date(portalDispatchResult.expires_at).getTime() <= Date.now()
+                      : false;
+
+                    if (isExpired) return null;
 
                     return (
                       <div
@@ -775,49 +758,51 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                           fontSize: '0.8rem',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#065F46', fontWeight: 700, marginBottom: '6px' }}>
-                          <CheckCircle size={16} color="#10B981" />
-                          <span>
-                            Evidence Request Dispatched {portalDispatchResult?.recipient_email ? `to ${portalDispatchResult.recipient_email}` : ''}
-                          </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#065F46', fontWeight: 700, marginBottom: '6px' }}>
+                        <CheckCircle size={16} color="#10B981" />
+                        <span>
+                          Evidence Request Dispatched {portalDispatchResult.recipient_email ? `to ${portalDispatchResult.recipient_email}` : ''}
+                        </span>
+                      </div>
+                      {portalDispatchResult.expires_at && (
+                        <div style={{ fontSize: '0.74rem', color: '#047857', marginBottom: '10px' }}>
+                          Link valid until: <strong>{new Date(portalDispatchResult.expires_at).toLocaleString()}</strong>
                         </div>
-                        <div style={{ fontSize: '0.74rem', color: '#047857', marginBottom: '8px' }}>
-                          Link valid until: <strong>{new Date(targetExpiry).toLocaleString()}</strong>
-                        </div>
+                      )}
 
-                        {targetPortalUrl && (
-                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {portalDispatchResult.portal_url && (
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleCopyPortalLink(portalDispatchResult.portal_url)}
+                            icon={copiedPortalLink ? <Check size={14} color="#10B981" /> : <Copy size={14} />}
+                          >
+                            {copiedPortalLink ? 'Link Copied!' : 'Copy Portal Link'}
+                          </Button>
+
+                          <a
+                            href={portalDispatchResult.portal_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ textDecoration: 'none' }}
+                          >
                             <Button
                               type="button"
-                              variant="secondary"
+                              variant="primary"
                               size="sm"
-                              onClick={handleCopyPortalLink}
-                              icon={copiedPortalLink ? <Check size={14} color="#10B981" /> : <Copy size={14} />}
+                              icon={<ExternalLink size={14} />}
                             >
-                              {copiedPortalLink ? 'Link Copied!' : 'Copy Portal Link'}
+                              Open Portal as Customer
                             </Button>
-
-                            <a
-                              href={targetPortalUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ textDecoration: 'none' }}
-                            >
-                              <Button
-                                type="button"
-                                variant="primary"
-                                size="sm"
-                                icon={<ExternalLink size={14} />}
-                              >
-                                Open Portal as Customer
-                              </Button>
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </form>
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </form>
 
                 {/* Existing Evidence Requests History */}
                 {existingRequests && existingRequests.length > 0 && (
@@ -830,7 +815,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                         <div
                           key={req.id}
                           style={{
-                            padding: '6px 10px',
+                            padding: '8px 12px',
                             borderRadius: '6px',
                             backgroundColor: 'var(--color-surface)',
                             border: '1px solid var(--color-border)',
@@ -838,6 +823,8 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '8px',
                           }}
                         >
                           <div>
@@ -845,8 +832,27 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                             <span style={{ color: 'var(--color-text-secondary)', marginLeft: '8px' }}>
                               • {new Date(req.created_at).toLocaleDateString()}
                             </span>
+                            {req.status === 'SUBMITTED' && (
+                              <span style={{ color: '#10B981', marginLeft: '8px', fontWeight: 600 }}>
+                                (Evidence Uploaded)
+                              </span>
+                            )}
                           </div>
-                          <Badge type={req.status}>{req.status}</Badge>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {req.status === 'ISSUED' && req.portal_url && (
+                              <a
+                                href={req.portal_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ textDecoration: 'none' }}
+                              >
+                                <Button type="button" variant="secondary" size="sm" icon={<ExternalLink size={12} />}>
+                                  Open Portal
+                                </Button>
+                              </a>
+                            )}
+                            <Badge type={req.status}>{req.status}</Badge>
+                          </div>
                         </div>
                       ))}
                     </div>
