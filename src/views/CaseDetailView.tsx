@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   AlertCircle,
   CheckCircle,
-  Network,
   Send,
   FileText,
   Image as ImageIcon,
@@ -107,8 +107,9 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
   const [copiedPortalLink, setCopiedPortalLink] = useState(false);
   const [existingRequests, setExistingRequests] = useState<any[]>([]);
 
-  const loadCase = async () => {
-    setLoading(true);
+  const loadCase = async (isInitial: boolean | React.MouseEvent = true) => {
+    const shouldShowFullLoader = typeof isInitial === 'boolean' ? isInitial : true;
+    if (shouldShowFullLoader) setLoading(true);
     try {
       const data = await apiClient.getInvestigationDetails(caseId);
       setCaseData(data);
@@ -120,13 +121,33 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
     } catch (err: any) {
       setError(err.message || 'Could not load case details');
     } finally {
-      setLoading(false);
+      if (shouldShowFullLoader) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadCase();
   }, [caseId]);
+
+  useEffect(() => {
+    if (selectedEvidence) {
+      const originalBodyOverflow = document.body.style.overflow;
+      const mainEl = document.querySelector('main');
+      const originalMainOverflow = mainEl ? mainEl.style.overflow : '';
+
+      document.body.style.overflow = 'hidden';
+      if (mainEl) {
+        mainEl.style.overflow = 'hidden';
+      }
+
+      return () => {
+        document.body.style.overflow = originalBodyOverflow;
+        if (mainEl) {
+          mainEl.style.overflow = originalMainOverflow;
+        }
+      };
+    }
+  }, [selectedEvidence]);
 
   const handleSubmitDecision = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,7 +172,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
       });
       setSubmitSuccess(`Action recorded: ${decision}. State updated to ${res.status}.`);
       setReason('');
-      await loadCase();
+      await loadCase(false);
     } catch (err: any) {
       alert(`Decision submission failed: ${err.message}`);
     } finally {
@@ -162,13 +183,12 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
 
   const handleDispatchEvidenceRequest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!customerReqReason.trim()) {
+      alert('Please provide a message or reason for requesting customer evidence.');
+      return;
+    }
     setDispatchingPortalReq(true);
     setPortalDispatchResult(null);
-    showLoader(
-      'Dispatching Customer Evidence Request',
-      'Generating cryptographically signed token and dispatching email notification...',
-      'Portal Dispatcher'
-    );
     try {
       const docs = reqDocList.filter((d) => d.selected).map((d) => ({ key: d.key, label: d.label }));
       if (docs.length === 0) {
@@ -184,12 +204,11 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
       });
 
       setPortalDispatchResult(res);
-      await loadCase();
+      await loadCase(false);
     } catch (err: any) {
       alert(`Failed to dispatch evidence request: ${err.message}`);
     } finally {
       setDispatchingPortalReq(false);
-      hideLoader();
     }
   };
 
@@ -294,7 +313,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
-          <Button variant="secondary" size="sm" onClick={loadCase} icon={<RefreshCw size={14} />}>
+          <Button variant="secondary" size="sm" onClick={() => loadCase(true)} icon={<RefreshCw size={14} />}>
             Refresh Case
           </Button>
         </div>
@@ -839,7 +858,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                           <div>
                             <span style={{ fontWeight: 600 }}>{req.request_reason}</span>
                             <span style={{ color: 'var(--color-text-secondary)', marginLeft: '8px' }}>
-                              ? {new Date(req.created_at).toLocaleDateString()}
+                              • {new Date(req.created_at).toLocaleDateString()}
                             </span>
                           </div>
                           <Badge type={req.status}>{req.status}</Badge>
@@ -1024,41 +1043,6 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
               </p>
             )}
           </Card>
-
-          {/* ArangoDB Entity Graph Link Map */}
-          <Card title="Entity Graph Traversal (Topology & Footprint)">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)', marginBottom: '12px' }}>
-              <Network size={18} />
-              <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>Correlated Master Nodes (m_* Tables)</span>
-            </div>
-            <div
-              style={{
-                padding: '20px',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--color-input-background)',
-                border: '1px solid var(--color-border)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                <div style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                  👤 <strong>m_users:</strong> {caseData.user_id_ref || 'Target'}
-                </div>
-                <div style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                  🏪 <strong>Merchant:</strong> {caseData.merchant_id_ref || 'Target'}
-                </div>
-                <div style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
-                  💳 <strong>m_payments:</strong> {caseData.transaction_id || 'Target'}
-                </div>
-              </div>
-              <span style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
-                Multi-hop graph link discovery active across device fingerprints, IP subnets, and chargeback disputes.
-              </span>
-            </div>
-          </Card>
         </div>
       </div>
 
@@ -1157,8 +1141,8 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                                   <span style={{ fontWeight: 700, color: '#1D4ED8', backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', padding: '1px 6px', borderRadius: '4px', fontSize: '0.72rem' }}>
                                     {doc.document_type || 'Document'}
                                   </span>
-                                  <a
-                                    href="#"
+                                  <button
+                                    type="button"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       setSelectedEvidence({
@@ -1168,18 +1152,23 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                                       });
                                     }}
                                     style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      padding: 0,
                                       color: 'var(--color-primary, #FF5A14)',
                                       fontWeight: 600,
                                       textDecoration: 'underline',
                                       cursor: 'pointer',
                                       display: 'inline-flex',
                                       alignItems: 'center',
-                                      gap: '3px',
+                                      gap: '4px',
+                                      font: 'inherit',
                                     }}
                                     title="Click to preview document in popup"
                                   >
-                                    <span>?? {doc.original_filename}</span>
-                                  </a>
+                                    <FileText size={12} style={{ flexShrink: 0 }} />
+                                    <span>{doc.original_filename}</span>
+                                  </button>
                                 </div>
                               ))}
                             </div>
@@ -1188,8 +1177,8 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                           {evt.details.filename && (!evt.details.documents || evt.details.documents.length === 0) && (
                             <div style={{ color: '#3B82F6', fontSize: '0.78rem', marginTop: '4px' }}>
                               Document:{' '}
-                              <a
-                                href="#"
+                              <button
+                                type="button"
                                 onClick={(e) => {
                                   e.preventDefault();
                                   setSelectedEvidence({
@@ -1205,15 +1194,23 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                                   });
                                 }}
                                 style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  padding: 0,
                                   color: 'var(--color-primary, #FF5A14)',
                                   fontWeight: 700,
                                   textDecoration: 'underline',
                                   cursor: 'pointer',
+                                  font: 'inherit',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
                                 }}
                                 title="Click to preview document in popup"
                               >
-                                {evt.details.filename}
-                              </a>{' '}
+                                <FileText size={12} style={{ flexShrink: 0 }} />
+                                <span>{evt.details.filename}</span>
+                              </button>{' '}
                               {evt.details.notes && `(${evt.details.notes})`}
                             </div>
                           )}
@@ -1228,10 +1225,8 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
             </table>
           </div>
         )}
-      </Card>
-
-      {/* Evidence Lightbox Viewer Modal */}
-      {selectedEvidence && (
+      </Card>      {/* Evidence Lightbox Viewer Modal - Portaled to document.body to prevent containing-block / scroll issues */}
+      {selectedEvidence && createPortal(
         <div
           style={{
             position: 'fixed',
@@ -1240,56 +1235,67 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
             right: 0,
             bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 9999,
-            padding: '24px',
+            zIndex: 999999,
+            padding: '24px 16px',
+            overflowY: 'auto',
           }}
           onClick={() => setSelectedEvidence(null)}
         >
           <div
             style={{
-              backgroundColor: 'var(--color-surface)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-surface, #181B22)',
+              borderRadius: 'var(--radius-md, 12px)',
+              border: '1px solid var(--color-border, #2D3748)',
               width: '100%',
-              maxWidth: '850px',
-              maxHeight: '90vh',
+              maxWidth: '820px',
+              maxHeight: 'min(90vh, 720px)',
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.8)',
+              margin: 'auto',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
             <div
               style={{
+                flexShrink: 0,
                 padding: '16px 20px',
-                borderBottom: '1px solid var(--color-border)',
+                borderBottom: '1px solid var(--color-border, #2D3748)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                backgroundColor: 'var(--color-surface, #181B22)',
               }}
             >
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--color-text-primary, #FFFFFF)' }}>
                   Evidence Document Viewer
                 </h3>
-                <span style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary, #94A3B8)' }}>
                   Ref: {selectedEvidence.source_reference} · Type: {selectedEvidence.evidence_type}
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedEvidence(null)}
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: 'var(--color-text-secondary)',
+                  color: 'var(--color-text-secondary, #94A3B8)',
                   cursor: 'pointer',
-                  padding: '4px',
+                  padding: '6px',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
+                title="Close Viewer"
               >
                 <X size={20} />
               </button>
@@ -1301,6 +1307,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                 padding: '20px',
                 overflowY: 'auto',
                 flex: 1,
+                minHeight: 0,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '16px',
@@ -1313,13 +1320,14 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                 <div
                   style={{
                     width: '100%',
-                    backgroundColor: '#000',
-                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: '#000000',
+                    borderRadius: 'var(--radius-sm, 8px)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     padding: '12px',
-                    maxHeight: '480px',
+                    maxHeight: '380px',
+                    overflow: 'hidden',
                   }}
                 >
                   <img
@@ -1327,14 +1335,15 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                     alt={selectedEvidence.source_reference}
                     style={{
                       maxWidth: '100%',
-                      maxHeight: '460px',
+                      maxHeight: '350px',
                       objectFit: 'contain',
                       borderRadius: '4px',
+                      display: 'block',
                     }}
                   />
                 </div>
               ) : selectedEvidence.normalized_payload?.file_url ? (
-                <div style={{ width: '100%', height: '420px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+                <div style={{ width: '100%', height: '380px', borderRadius: 'var(--radius-sm, 8px)', overflow: 'hidden', border: '1px solid var(--color-border, #2D3748)' }}>
                   <iframe
                     src={selectedEvidence.normalized_payload.file_url}
                     title={selectedEvidence.source_reference}
@@ -1342,7 +1351,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                   />
                 </div>
               ) : (
-                <div style={{ padding: '36px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                <div style={{ padding: '36px', textAlign: 'center', color: 'var(--color-text-secondary, #94A3B8)' }}>
                   Preview not available for this structured data item.
                 </div>
               )}
@@ -1351,14 +1360,15 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
               <div
                 style={{
                   width: '100%',
-                  padding: '14px',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--color-input-background)',
-                  border: '1px solid var(--color-border)',
+                  padding: '14px 16px',
+                  borderRadius: 'var(--radius-sm, 8px)',
+                  backgroundColor: 'var(--color-input-background, #1C1F26)',
+                  border: '1px solid var(--color-border, #2D3748)',
                   fontSize: '0.82rem',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '6px',
+                  flexShrink: 0,
                 }}
               >
                 <div>
@@ -1381,11 +1391,13 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
             {/* Modal Footer */}
             <div
               style={{
+                flexShrink: 0,
                 padding: '14px 20px',
-                borderTop: '1px solid var(--color-border)',
+                borderTop: '1px solid var(--color-border, #2D3748)',
                 display: 'flex',
                 justifyContent: 'flex-end',
                 gap: '10px',
+                backgroundColor: 'var(--color-surface, #181B22)',
               }}
             >
               {selectedEvidence.normalized_payload?.file_url && (
@@ -1406,7 +1418,8 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

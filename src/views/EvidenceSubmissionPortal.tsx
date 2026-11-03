@@ -323,9 +323,9 @@ export const EvidenceSubmissionPortal: React.FC = () => {
       <div style={containerStyle}>
         <div style={cardStyle}>
           <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-            <RefreshCw size={36} className="animate-spin" style={{ color: 'var(--color-primary, #FF5A14)', margin: '0 auto 16px' }} />
+            <RefreshCw size={36} className="animate-spin" style={{ color: '#FF5A14', margin: '0 auto 16px' }} />
             <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 8px' }}>Validating Security Link...</h2>
-            <p style={{ color: 'var(--color-text-secondary, #6B7280)', fontSize: '0.88rem' }}>
+            <p style={{ color: '#64748B', fontSize: '0.88rem' }}>
               Establishing end-to-end encrypted channel with Fraud Operations Vault.
             </p>
           </div>
@@ -353,10 +353,10 @@ export const EvidenceSubmissionPortal: React.FC = () => {
             </div>
           )}
 
-          <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: '16px 0 8px', color: 'var(--color-text-primary, #111827)' }}>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: '16px 0 8px', color: '#0F172A' }}>
             {errorState.title}
           </h2>
-          <p style={{ color: 'var(--color-text-secondary, #4B5563)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '24px' }}>
+          <p style={{ color: '#475569', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '24px' }}>
             {errorState.message}
           </p>
 
@@ -364,10 +364,10 @@ export const EvidenceSubmissionPortal: React.FC = () => {
             style={{
               padding: '14px',
               borderRadius: '8px',
-              backgroundColor: 'var(--color-input-background, #F9FAFB)',
-              border: '1px solid var(--color-border, #E5E7EB)',
+              backgroundColor: '#F8FAFC',
+              border: '1px solid #E2E8F0',
               fontSize: '0.78rem',
-              color: 'var(--color-text-secondary, #6B7280)',
+              color: '#64748B',
               textAlign: 'left',
               display: 'flex',
               alignItems: 'center',
@@ -390,13 +390,13 @@ export const EvidenceSubmissionPortal: React.FC = () => {
         <header
           style={{
             padding: '24px 32px',
-            borderBottom: '1px solid var(--color-border, #E5E7EB)',
+            borderBottom: '1px solid #E2E8F0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
             gap: '16px',
-            backgroundColor: 'var(--color-surface, #FFFFFF)',
+            backgroundColor: '#FFFFFF',
             borderTopLeftRadius: '16px',
             borderTopRightRadius: '16px',
           }}
@@ -411,14 +411,14 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--color-primary, #FF5A14)',
+                color: '#FF5A14',
               }}
             >
               <ShieldCheck size={24} />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-text-primary, #111827)' }}>
+                <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
                   Fraud & Risk Operations
                 </span>
                 <span
@@ -440,44 +440,44 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                   <Lock size={10} /> 256-bit Encrypted
                 </span>
               </div>
-              <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: 'var(--color-text-secondary, #6B7280)' }}>
+              <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748B' }}>
                 Official Evidence & Transaction Statement Submission Portal
               </p>
             </div>
           </div>
 
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary, #6B7280)', fontWeight: 600 }}>Case Reference</div>
-            <code style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-primary, #FF5A14)', fontFamily: 'monospace' }}>
+            <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Case Reference</div>
+            <code style={{ fontSize: '0.88rem', fontWeight: 700, color: '#FF5A14', fontFamily: 'monospace', backgroundColor: '#FFF7ED', padding: '2px 8px', borderRadius: '4px', border: '1px solid #FFEDD5', display: 'inline-block', marginTop: '2px' }}>
               {portalData?.case_reference || 'CASE-****'}
             </code>
           </div>
         </header>
 
         {/* Stepper Progress Bar */}
-        <div style={{ padding: '20px 32px', backgroundColor: 'var(--color-input-background, #F9FAFB)', borderBottom: '1px solid var(--color-border, #E5E7EB)' }}>
+        <div style={{ padding: '20px 32px', backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 1 }}>
               <div style={stepBubbleStyle(step === 'VERIFY_OTP' ? 'active' : 'completed')}>1</div>
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: step === 'VERIFY_OTP' ? 'var(--color-primary, #FF5A14)' : 'var(--color-text-primary, #111827)' }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: step === 'VERIFY_OTP' ? '#FF5A14' : '#0F172A' }}>
                 Verify Identity
               </span>
             </div>
 
-            <div style={{ flex: 1, height: '2px', backgroundColor: step !== 'VERIFY_OTP' ? 'var(--color-primary, #FF5A14)' : '#E5E7EB', margin: '0 16px' }} />
+            <div style={{ flex: 1, height: '2px', backgroundColor: step !== 'VERIFY_OTP' ? '#FF5A14' : '#E5E7EB', margin: '0 16px' }} />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 1 }}>
               <div style={stepBubbleStyle(step === 'FORM_UPLOAD' ? 'active' : step === 'SUCCESS' ? 'completed' : 'pending')}>2</div>
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: step === 'FORM_UPLOAD' ? 'var(--color-primary, #FF5A14)' : 'var(--color-text-secondary, #6B7280)' }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: step === 'FORM_UPLOAD' ? '#FF5A14' : '#64748B' }}>
                 Upload & Details
               </span>
             </div>
 
-            <div style={{ flex: 1, height: '2px', backgroundColor: step === 'SUCCESS' ? 'var(--color-primary, #FF5A14)' : '#E5E7EB', margin: '0 16px' }} />
+            <div style={{ flex: 1, height: '2px', backgroundColor: step === 'SUCCESS' ? '#FF5A14' : '#E5E7EB', margin: '0 16px' }} />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 1 }}>
               <div style={stepBubbleStyle(step === 'SUCCESS' ? 'completed' : 'pending')}>3</div>
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: step === 'SUCCESS' ? '#10B981' : 'var(--color-text-secondary, #6B7280)' }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: step === 'SUCCESS' ? '#10B981' : '#64748B' }}>
                 Confirmation
               </span>
             </div>
@@ -489,12 +489,12 @@ export const EvidenceSubmissionPortal: React.FC = () => {
           <div style={{ padding: '36px 32px' }} className="animate-fade-in">
             <div style={{ textAlign: 'center', maxWidth: '480px', margin: '0 auto 32px' }}>
               <div style={iconBadgeStyle('#FF5A14', 'rgba(255, 90, 20, 0.1)')}>
-                <Lock size={32} color="var(--color-primary, #FF5A14)" />
+                <Lock size={32} color="#FF5A14" />
               </div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '14px 0 6px', color: 'var(--color-text-primary, #111827)' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '14px 0 6px', color: '#0F172A' }}>
                 Account Holder Verification
               </h2>
-              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary, #4B5563)', lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5 }}>
                 To safeguard your account and ensure authorized access, we verify the registered owner before accepting evidence.
               </p>
             </div>
@@ -506,8 +506,8 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                 margin: '0 auto 28px',
                 padding: '16px 20px',
                 borderRadius: '12px',
-                backgroundColor: 'var(--color-input-background, #F9FAFB)',
-                border: '1px solid var(--color-border, #E5E7EB)',
+                backgroundColor: '#F8FAFC',
+                border: '1px solid #E2E8F0',
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
                 gap: '12px',
@@ -515,19 +515,19 @@ export const EvidenceSubmissionPortal: React.FC = () => {
               }}
             >
               <div>
-                <span style={{ color: 'var(--color-text-secondary, #6B7280)', display: 'block', fontSize: '0.72rem' }}>Account Name</span>
-                <strong style={{ color: 'var(--color-text-primary, #111827)' }}>{portalData?.customer?.masked_name || 'Account Holder'}</strong>
+                <span style={{ color: '#64748B', display: 'block', fontSize: '0.72rem' }}>Account Name</span>
+                <strong style={{ color: '#0F172A' }}>{portalData?.customer?.masked_name || 'Account Holder'}</strong>
               </div>
               <div>
-                <span style={{ color: 'var(--color-text-secondary, #6B7280)', display: 'block', fontSize: '0.72rem' }}>Registered Contact</span>
-                <strong style={{ color: 'var(--color-text-primary, #111827)' }}>{portalData?.customer?.masked_email || 'Verified Email'}</strong>
+                <span style={{ color: '#64748B', display: 'block', fontSize: '0.72rem' }}>Registered Contact</span>
+                <strong style={{ color: '#0F172A' }}>{portalData?.customer?.masked_email || 'Verified Email'}</strong>
               </div>
               <div>
-                <span style={{ color: 'var(--color-text-secondary, #6B7280)', display: 'block', fontSize: '0.72rem' }}>Flagged Transaction</span>
-                <strong style={{ color: 'var(--color-text-primary, #111827)' }}>{portalData?.transaction_context?.transaction_id_masked || 'TXN-****'}</strong>
+                <span style={{ color: '#64748B', display: 'block', fontSize: '0.72rem' }}>Flagged Transaction</span>
+                <strong style={{ color: '#0F172A' }}>{portalData?.transaction_context?.transaction_id_masked || 'TXN-****'}</strong>
               </div>
               <div>
-                <span style={{ color: 'var(--color-text-secondary, #6B7280)', display: 'block', fontSize: '0.72rem' }}>Disputed Amount</span>
+                <span style={{ color: '#64748B', display: 'block', fontSize: '0.72rem' }}>Disputed Amount</span>
                 <strong style={{ color: '#DC2626' }}>₹{portalData?.transaction_context?.amount?.toLocaleString() || '0.00'}</strong>
               </div>
             </div>
@@ -535,7 +535,7 @@ export const EvidenceSubmissionPortal: React.FC = () => {
             {/* OTP Action Area */}
             {!otpSent ? (
               <div style={{ textAlign: 'center', maxWidth: '400px', margin: '0 auto' }}>
-                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary, #4B5563)', marginBottom: '18px' }}>
+                <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '18px' }}>
                   Click below to dispatch a 6-digit one-time code to <strong>{portalData?.customer?.masked_email}</strong>.
                 </p>
                 <button
@@ -558,7 +558,7 @@ export const EvidenceSubmissionPortal: React.FC = () => {
             ) : (
               <form onSubmit={handleVerifyOtp} style={{ maxWidth: '420px', margin: '0 auto' }}>
                 <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary, #4B5563)' }}>
+                  <span style={{ fontSize: '0.85rem', color: '#475569' }}>
                     Enter the 6-digit code sent to <strong>{portalData?.customer?.masked_email}</strong>:
                   </span>
                 </div>
@@ -584,9 +584,9 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                         fontSize: '1.4rem',
                         fontWeight: 700,
                         borderRadius: '10px',
-                        border: digit ? '2px solid var(--color-primary, #FF5A14)' : '1px solid var(--color-border, #D1D5DB)',
-                        backgroundColor: 'var(--color-surface, #FFFFFF)',
-                        color: 'var(--color-text-primary, #111827)',
+                        border: digit ? '2px solid #FF5A14' : '1px solid #CBD5E1',
+                        backgroundColor: '#FFFFFF',
+                        color: '#0F172A',
                         outline: 'none',
                         transition: 'border-color 0.15s ease',
                       }}
@@ -655,7 +655,7 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: otpCooldown > 0 ? '#9CA3AF' : 'var(--color-primary, #FF5A14)',
+                      color: otpCooldown > 0 ? '#9CA3AF' : '#FF5A14',
                       fontSize: '0.8rem',
                       fontWeight: 600,
                       cursor: otpCooldown > 0 ? 'default' : 'pointer',
@@ -690,7 +690,7 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                 <FileText size={18} />
                 <span>Requested Verification Documents</span>
               </div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary, #4B5563)', margin: '0 0 10px' }}>
+              <p style={{ fontSize: '0.8rem', color: '#475569', margin: '0 0 10px' }}>
                 {portalData?.request_reason || 'Please provide documentation validating your purchase and authorization.'}
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -718,8 +718,8 @@ export const EvidenceSubmissionPortal: React.FC = () => {
 
             {/* Section 1: Transaction Details */}
             <div style={{ marginBottom: '28px' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 14px', color: 'var(--color-text-primary, #111827)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CreditCard size={18} color="var(--color-primary, #FF5A14)" />
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 14px', color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CreditCard size={18} color="#FF5A14" />
                 <span>1. Transaction Statement</span>
               </h3>
 
@@ -775,12 +775,12 @@ export const EvidenceSubmissionPortal: React.FC = () => {
             {/* Section 2: Interactive Evidence Upload (Separate Box per Required Document Type) */}
             <div style={{ marginBottom: '28px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: 0, color: 'var(--color-text-primary, #111827)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <ImageIcon size={18} color="var(--color-primary, #FF5A14)" />
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: 0, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ImageIcon size={18} color="#FF5A14" />
                   <span>2. Required Evidence Upload ({requestedDocs.length} Document {requestedDocs.length === 1 ? 'Type' : 'Types'})</span>
                 </h3>
-                <span style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary, #6B7280)' }}>
-                  Max 10MB per file (.png, .jpg, .webp, .pdf) ? Pre-upload AI validation active
+                <span style={{ fontSize: '0.72rem', color: '#64748B' }}>
+                  Max 10MB per file (.png, .jpg, .webp, .pdf) • Pre-upload AI validation active
                 </span>
               </div>
 
@@ -800,14 +800,14 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                           ? '1.5px solid #FCA5A5'
                           : hasFile
                           ? '1.5px solid #86EFAC'
-                          : '1px solid var(--color-border, #CBD5E1)',
+                          : '1px solid #CBD5E1',
                         backgroundColor: hasError
                           ? '#FEF2F2'
                           : hasFile
                           ? 'rgba(240, 253, 244, 0.6)'
-                          : 'var(--color-surface, #FFFFFF)',
+                          : '#FFFFFF',
                         padding: '18px 20px',
-                        boxShadow: 'var(--shadow-sm)',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
                         transition: 'all 0.2s ease',
                       }}
                     >
@@ -831,7 +831,7 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                             {idx + 1}
                           </div>
                           <div>
-                            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-text-primary, #111827)' }}>
+                            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0F172A' }}>
                               {doc.label}
                             </span>
                           </div>
@@ -929,7 +929,7 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                               </div>
                               <div style={{ fontSize: '0.72rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                                 <span>{(slot.file.size / (1024 * 1024)).toFixed(2)} MB</span>
-                                {slot.reason && <span>? {slot.reason}</span>}
+                                {slot.reason && <span>• {slot.reason}</span>}
                               </div>
                             </div>
                           </div>
@@ -975,11 +975,11 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                         /* Dropzone for this slot */
                         <div
                           style={{
-                            border: '1.5px dashed var(--color-border, #CBD5E1)',
+                            border: '1.5px dashed #CBD5E1',
                             borderRadius: '8px',
                             padding: '18px',
                             textAlign: 'center',
-                            backgroundColor: 'var(--color-input-background, #F8FAFC)',
+                            backgroundColor: '#F8FAFC',
                             cursor: isValidating ? 'wait' : 'pointer',
                             transition: 'border-color 0.2s ease',
                           }}
@@ -990,11 +990,11 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                             }
                           }}
                         >
-                          <UploadCloud size={30} style={{ color: 'var(--color-primary, #FF5A14)', margin: '0 auto 6px' }} />
-                          <p style={{ margin: '0 0 4px', fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text-primary, #111827)' }}>
+                          <UploadCloud size={30} style={{ color: '#FF5A14', margin: '0 auto 6px' }} />
+                          <p style={{ margin: '0 0 4px', fontSize: '0.82rem', fontWeight: 700, color: '#0F172A' }}>
                             Click to upload {doc.label} or drag and drop here
                           </p>
-                          <p style={{ margin: '0 0 10px', fontSize: '0.74rem', color: 'var(--color-text-secondary, #64748B)' }}>
+                          <p style={{ margin: '0 0 10px', fontSize: '0.74rem', color: '#64748B' }}>
                             Supports PNG, JPG, WEBP, PDF (Max 10MB)
                           </p>
 
@@ -1011,10 +1011,10 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                                 padding: '6px 12px',
                                 borderRadius: '6px',
                                 backgroundColor: '#FFFFFF',
-                                border: '1px solid var(--color-border, #CBD5E1)',
+                                border: '1px solid #CBD5E1',
                                 fontSize: '0.74rem',
                                 fontWeight: 600,
-                                color: 'var(--color-text-primary, #1E293B)',
+                                color: '#0F172A',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '5px',
@@ -1067,8 +1067,8 @@ export const EvidenceSubmissionPortal: React.FC = () => {
               style={{
                 padding: '14px 18px',
                 borderRadius: '10px',
-                backgroundColor: 'var(--color-input-background, #F8FAFC)',
-                border: '1px solid var(--color-border, #E2E8F0)',
+                backgroundColor: '#F8FAFC',
+                border: '1px solid #E2E8F0',
                 marginBottom: '24px',
                 display: 'flex',
                 alignItems: 'flex-start',
@@ -1082,7 +1082,7 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                 onChange={(e) => setCertified(e.target.checked)}
                 style={{ marginTop: '3px', cursor: 'pointer', width: '16px', height: '16px' }}
               />
-              <label htmlFor="legal-cert" style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary, #475569)', lineHeight: 1.5, cursor: 'pointer' }}>
+              <label htmlFor="legal-cert" style={{ fontSize: '0.8rem', color: '#475569', lineHeight: 1.5, cursor: 'pointer' }}>
                 I certify that I am the authorized account holder and that all uploaded documents, images, and transaction statements are genuine, unaltered, and submitted in good faith for compliance review.
               </label>
             </div>
@@ -1108,24 +1108,32 @@ export const EvidenceSubmissionPortal: React.FC = () => {
 
             {/* Submission Actions */}
             <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-              <button
-                type="submit"
-                disabled={submitting || Object.values(docSlots).filter((s) => s.file && s.valid).length === 0 || !certified}
-                style={{
-                  ...primaryButtonStyle,
-                  opacity: submitting || Object.values(docSlots).filter((s) => s.file && s.valid).length === 0 || !certified ? 0.6 : 1,
-                }}
-              >
-                {submitting ? (
-                  <>
-                    <RefreshCw size={18} className="animate-spin" /> Digitally Fingerprinting & Encrypting...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 size={18} /> Submit Evidence & Transaction Statement
-                  </>
-                )}
-              </button>
+              {(() => {
+                const isSubmitDisabled = submitting || Object.values(docSlots).filter((s) => s.file && s.valid).length === 0 || !certified;
+                return (
+                  <button
+                    type="submit"
+                    disabled={isSubmitDisabled}
+                    style={{
+                      ...primaryButtonStyle,
+                      backgroundColor: isSubmitDisabled ? '#E2E8F0' : '#FF5A14',
+                      color: isSubmitDisabled ? '#94A3B8' : '#FFFFFF',
+                      boxShadow: isSubmitDisabled ? 'none' : '0 4px 14px rgba(255, 90, 20, 0.28)',
+                      cursor: isSubmitDisabled ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {submitting ? (
+                      <>
+                        <RefreshCw size={18} className="animate-spin" /> Digitally Fingerprinting & Encrypting...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={18} /> Submit Evidence & Transaction Statement
+                      </>
+                    )}
+                  </button>
+                );
+              })()}
             </div>
           </form>
         )}
@@ -1137,10 +1145,10 @@ export const EvidenceSubmissionPortal: React.FC = () => {
               <CheckCircle2 size={42} color="#10B981" />
             </div>
 
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '18px 0 8px', color: 'var(--color-text-primary, #111827)' }}>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '18px 0 8px', color: '#0F172A' }}>
               Evidence Successfully Submitted
             </h2>
-            <p style={{ color: 'var(--color-text-secondary, #4B5563)', fontSize: '0.9rem', maxWidth: '520px', margin: '0 auto 24px', lineHeight: 1.6 }}>
+            <p style={{ color: '#475569', fontSize: '0.9rem', maxWidth: '520px', margin: '0 auto 24px', lineHeight: 1.6 }}>
               Thank you. Your documents and transaction statements have been securely archived in our forensic vault and attached to your investigation case.
             </p>
 
@@ -1151,17 +1159,17 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                 margin: '0 auto 28px',
                 padding: '20px',
                 borderRadius: '12px',
-                backgroundColor: 'var(--color-input-background, #F9FAFB)',
-                border: '1px solid var(--color-border, #E5E7EB)',
+                backgroundColor: '#F8FAFC',
+                border: '1px solid #E2E8F0',
                 textAlign: 'left',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary, #6B7280)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700 }}>
+                  <span style={{ fontSize: '0.72rem', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700 }}>
                     Submission Reference Number
                   </span>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-primary, #FF5A14)', fontFamily: 'monospace' }}>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#FF5A14', fontFamily: 'monospace' }}>
                     {submissionReceipt?.submission_reference || 'SUB-179334-XXXX'}
                   </div>
                 </div>
@@ -1173,7 +1181,7 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                     padding: '8px 12px',
                     borderRadius: '8px',
                     backgroundColor: '#FFFFFF',
-                    border: '1px solid var(--color-border, #D1D5DB)',
+                    border: '1px solid #CBD5E1',
                     fontSize: '0.75rem',
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -1187,13 +1195,13 @@ export const EvidenceSubmissionPortal: React.FC = () => {
                 </button>
               </div>
 
-              <div style={{ borderTop: '1px solid var(--color-border, #E5E7EB)', paddingTop: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem' }}>
+              <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem' }}>
                 <div>
-                  <span style={{ color: 'var(--color-text-secondary, #6B7280)' }}>Items Received: </span>
+                  <span style={{ color: '#64748B' }}>Items Received: </span>
                   <strong>{submissionReceipt?.items_submitted_count || Object.values(docSlots).filter((s) => s.file).length} files + statement</strong>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--color-text-secondary, #6B7280)' }}>Case Status: </span>
+                  <span style={{ color: '#64748B' }}>Case Status: </span>
                   <strong style={{ color: '#059669' }}>REQUIRES REVIEW</strong>
                 </div>
               </div>
@@ -1230,22 +1238,25 @@ export const EvidenceSubmissionPortal: React.FC = () => {
 // ── STYLE CONSTANTS ─────────────────────────────────────────────────────────
 
 const containerStyle: React.CSSProperties = {
+  colorScheme: 'light',
   minHeight: '100vh',
   width: '100%',
-  backgroundColor: '#0F172A',
+  backgroundColor: '#F1F5F9',
+  backgroundImage: 'radial-gradient(ellipse at 50% 0%, #EFF6FF 0%, #F1F5F9 65%, #E2E8F0 100%)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: '24px 16px',
+  padding: '36px 16px',
   fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+  color: '#0F172A',
 };
 
 const cardStyle: React.CSSProperties = {
   width: '100%',
   backgroundColor: '#FFFFFF',
   borderRadius: '16px',
-  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-  border: '1px solid #1E293B',
+  boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
+  border: '1px solid #E2E8F0',
   overflow: 'hidden',
 };
 
@@ -1261,30 +1272,31 @@ const iconBadgeStyle = (_color: string, bg: string): React.CSSProperties => ({
 });
 
 const stepBubbleStyle = (state: 'completed' | 'active' | 'pending'): React.CSSProperties => ({
-  width: '28px',
-  height: '28px',
+  width: '30px',
+  height: '30px',
   borderRadius: '50%',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontSize: '0.75rem',
+  fontSize: '0.78rem',
   fontWeight: 700,
   backgroundColor:
     state === 'completed'
       ? '#10B981'
       : state === 'active'
-      ? 'var(--color-primary, #FF5A14)'
+      ? '#FF5A14'
       : '#E2E8F0',
   color: state === 'pending' ? '#64748B' : '#FFFFFF',
+  boxShadow: state === 'active' ? '0 0 0 3px rgba(255, 90, 20, 0.2)' : undefined,
 });
 
 const primaryButtonStyle: React.CSSProperties = {
   width: '100%',
   padding: '13px 20px',
   borderRadius: '10px',
-  backgroundColor: 'var(--color-primary, #FF5A14)',
+  backgroundColor: '#FF5A14',
   color: '#FFFFFF',
-  fontSize: '0.9rem',
+  fontSize: '0.92rem',
   fontWeight: 700,
   border: 'none',
   cursor: 'pointer',
@@ -1292,15 +1304,15 @@ const primaryButtonStyle: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   gap: '8px',
-  boxShadow: '0 4px 6px -1px rgba(255, 90, 20, 0.25)',
-  transition: 'transform 0.1s ease',
+  boxShadow: '0 4px 14px rgba(255, 90, 20, 0.28)',
+  transition: 'all 0.15s ease',
 };
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
   fontSize: '0.78rem',
   fontWeight: 700,
-  color: 'var(--color-text-secondary, #475569)',
+  color: '#475569',
   marginBottom: '6px',
 };
 
@@ -1308,9 +1320,9 @@ const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '10px 14px',
   borderRadius: '8px',
-  border: '1px solid var(--color-border, #CBD5E1)',
-  backgroundColor: 'var(--color-surface, #FFFFFF)',
-  color: 'var(--color-text-primary, #0F172A)',
+  border: '1px solid #CBD5E1',
+  backgroundColor: '#FFFFFF',
+  color: '#0F172A',
   fontSize: '0.85rem',
   outline: 'none',
   boxSizing: 'border-box',
