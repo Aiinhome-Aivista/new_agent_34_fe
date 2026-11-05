@@ -22,6 +22,7 @@ import {
   Check,
   ExternalLink,
   ShieldCheck,
+  History,
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
@@ -42,6 +43,15 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
   const { showLoader, hideLoader } = useGlobalLoader();
   const [caseData, setCaseData] = useState<InvestigationCase | null>(null);
   const [auditEvents, setAuditEvents] = useState<any[]>([]);
+  const [auditFilter, setAuditFilter] = useState<'ALL' | 'CURRENT' | 'PRECEDENT'>('ALL');
+
+  const precedentCount = auditEvents.filter((e) => !e.is_current_case).length;
+  const currentCount = auditEvents.filter((e) => e.is_current_case).length;
+  const filteredAuditEvents = auditEvents.filter((evt) => {
+    if (auditFilter === 'CURRENT') return evt.is_current_case;
+    if (auditFilter === 'PRECEDENT') return !evt.is_current_case;
+    return true;
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -442,6 +452,40 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px', marginBottom: '28px' }}>
         {/* Left Column: Recommendation & Review Gateway */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Hardware Device Taint / Ban Evasion Alert Banner */}
+          {latestRec && (
+            (structured.risk_indicators && structured.risk_indicators.some(
+              (ind: any) =>
+                ind.statement &&
+                (ind.statement.toLowerCase().includes('ban evasion') ||
+                 ind.statement.toLowerCase().includes('tainted') ||
+                 ind.statement.toLowerCase().includes('hardware'))
+            )) ||
+            (latestRec.explanation && latestRec.explanation.toLowerCase().includes('ban evasion'))
+          ) && (
+            <div
+              style={{
+                padding: '14px 18px',
+                backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                border: '1.5px solid #EF4444',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+              }}
+            >
+              <ShieldAlert size={22} color="#EF4444" style={{ flexShrink: 0 }} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#EF4444', marginBottom: '2px' }}>
+                  Hardware Fingerprint Taint — Potential Ban Evasion Detected
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-primary)', lineHeight: 1.4 }}>
+                  This transaction originated from a physical hardware device linked to <strong>BLOCKED fraudster account(s)</strong>. Syndicate multi-accounting or ban evasion suspected.
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Recommendation Card */}
           <Card title="Agent Forensic Recommendation">
             {latestRec ? (
@@ -1039,16 +1083,117 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
 
       {/* Case Audit & Governance Trail Table */}
       <Card
-        title={`Immutable Case Audit Trail (${auditEvents.length} Events)`}
+        title={
+          precedentCount > 0
+            ? `Forensic Audit Trail & Cross-Case Precedents (${auditEvents.length} Events)`
+            : `Immutable Case Audit Trail (${auditEvents.length} Events)`
+        }
         action={
-          <span style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
-            User ID Indexed · Tamper-Evident SHA-256
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {precedentCount > 0 && (
+              <span
+                style={{
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                  color: '#F59E0B',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                }}
+              >
+                {precedentCount} Historical Precedent{precedentCount > 1 ? 's' : ''}
+              </span>
+            )}
+            <span style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
+              User ID Indexed · SHA-256 Verified
+            </span>
+          </div>
         }
       >
-        {auditEvents.length === 0 ? (
+        {/* Precedent Notification Banner & Scope Filter Toolbar */}
+        {precedentCount > 0 && (
+          <div
+            style={{
+              marginBottom: '16px',
+              padding: '12px 16px',
+              backgroundColor: 'rgba(245, 158, 11, 0.08)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <History size={18} color="#F59E0B" style={{ flexShrink: 0 }} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.84rem', color: '#F59E0B' }}>
+                  Cross-Case Forensic Precedent Detected
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>
+                  This target customer has <strong>{precedentCount} historical audit events</strong> recorded across past investigation cases.
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={() => setAuditFilter('ALL')}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  backgroundColor: auditFilter === 'ALL' ? 'var(--color-primary)' : 'var(--color-input-background)',
+                  color: auditFilter === 'ALL' ? 'white' : 'var(--color-text-secondary)',
+                  border: '1px solid var(--color-border)',
+                }}
+              >
+                All Events ({auditEvents.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuditFilter('CURRENT')}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  backgroundColor: auditFilter === 'CURRENT' ? 'var(--color-primary)' : 'var(--color-input-background)',
+                  color: auditFilter === 'CURRENT' ? 'white' : 'var(--color-text-secondary)',
+                  border: '1px solid var(--color-border)',
+                }}
+              >
+                Current Case ({currentCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuditFilter('PRECEDENT')}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  backgroundColor: auditFilter === 'PRECEDENT' ? '#F59E0B' : 'rgba(245, 158, 11, 0.15)',
+                  color: auditFilter === 'PRECEDENT' ? '#000' : '#F59E0B',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                }}
+              >
+                Past Precedents ({precedentCount})
+              </button>
+            </div>
+          </div>
+        )}
+
+        {filteredAuditEvents.length === 0 ? (
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
-            No audit records registered for this case yet.
+            No audit records matching the selected filter.
           </p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -1056,6 +1201,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
               <thead>
                 <tr style={{ backgroundColor: 'var(--color-input-background)', borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', fontSize: '0.76rem', textTransform: 'uppercase' }}>
                   <th style={{ padding: '10px 14px' }}>Timestamp (IST)</th>
+                  <th style={{ padding: '10px 14px' }}>Scope / Case</th>
                   <th style={{ padding: '10px 14px' }}>Event Type</th>
                   <th style={{ padding: '10px 14px' }}>Target User ID</th>
                   <th style={{ padding: '10px 14px' }}>Actor</th>
@@ -1063,10 +1209,53 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                 </tr>
               </thead>
               <tbody>
-                {auditEvents.map((evt: any) => (
-                  <tr key={evt.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                {filteredAuditEvents.map((evt: any) => {
+                  const isPrecedent = !evt.is_current_case;
+                  return (
+                  <tr
+                    key={evt.id}
+                    style={{
+                      borderBottom: '1px solid var(--color-border)',
+                      backgroundColor: isPrecedent ? 'rgba(245, 158, 11, 0.03)' : undefined,
+                    }}
+                  >
                     <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>
                       {formatToIST(evt.event_timestamp)}
+                    </td>
+                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                      {evt.is_current_case ? (
+                        <span
+                          style={{
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            color: '#3B82F6',
+                            border: '1px solid rgba(59, 130, 246, 0.25)',
+                          }}
+                        >
+                          Current Case
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                            color: '#F59E0B',
+                            border: '1px solid rgba(245, 158, 11, 0.4)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                          title="Historical event recorded in a prior investigation case for this customer"
+                        >
+                          📜 {evt.case_label || 'Past Precedent'}
+                        </span>
+                      )}
                     </td>
                     <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
                       <span
@@ -1212,7 +1401,8 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                       )}
                     </td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </table>
           </div>
