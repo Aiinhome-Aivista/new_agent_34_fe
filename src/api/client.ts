@@ -219,6 +219,12 @@ export const apiClient = {
     return res.json();
   },
 
+  async getActionDetails(actionId: string) {
+    const res = await fetch(`${API_BASE}/actions/${actionId}/details`);
+    if (!res.ok) throw new Error(`Failed to fetch action details for ${actionId}`);
+    return res.json();
+  },
+
   async getActions() {
     const res = await fetch(`${API_BASE}/actions`);
     if (!res.ok) throw new Error('Failed to fetch action history');

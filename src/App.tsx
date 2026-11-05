@@ -228,7 +228,7 @@ function AppInner() {
                 currentUser={user}
               />
             )}
-            {currentTab === 'actions' && <ActionHistoryView />}
+            {currentTab === 'actions' && <ActionHistoryView onNavigateToCase={handleSelectCase} />}
             {/* {currentTab === 'integrations' && <IntegrationsView />} */}
             {/* {currentTab === 'simulator' && (
               <SimulatorView
