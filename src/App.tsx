@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { LoadingProvider /*, useGlobalLoader */ } from './context/LoadingContext';
 import { Sidebar } from './components/layout/Sidebar';
@@ -27,16 +27,78 @@ interface User {
 }
 
 function AppInner() {
-  const [page, setPage] = useState<Page>('landing');
-  const [user, setUser] = useState<User | null>(null);
-  const [currentTab, setCurrentTab] = useState<string>('dashboard');
-  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
-  // const { showLoader, hideLoader } = useGlobalLoader();
+  // Session Persistence across browser refresh
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const saved = localStorage.getItem('fraudops_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [page, setPage] = useState<Page>(() => {
+    try {
+      const savedUser = localStorage.getItem('fraudops_user');
+      const savedPage = localStorage.getItem('fraudops_page') as Page;
+      if (savedUser && savedPage === 'app') {
+        return 'app';
+      }
+      return 'landing';
+    } catch {
+      return 'landing';
+    }
+  });
+
+  const [currentTab, setCurrentTab] = useState<string>(() => {
+    try {
+      const savedTab = localStorage.getItem('fraudops_tab');
+      return savedTab || 'dashboard';
+    } catch {
+      return 'dashboard';
+    }
+  });
+
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('fraudops_case_id') || null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Synchronize authentication and view state with localStorage
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('fraudops_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('fraudops_user');
+    }
+  }, [user]);
+
+  useEffect(() => {
+    localStorage.setItem('fraudops_page', page);
+  }, [page]);
+
+  useEffect(() => {
+    localStorage.setItem('fraudops_tab', currentTab);
+  }, [currentTab]);
+
+  useEffect(() => {
+    if (selectedCaseId) {
+      localStorage.setItem('fraudops_case_id', selectedCaseId);
+    } else {
+      localStorage.removeItem('fraudops_case_id');
+    }
+  }, [selectedCaseId]);
 
   const handleLogin = (u: User) => {
     setUser(u);
     setCurrentTab('dashboard');
     setPage('app');
+    localStorage.setItem('fraudops_user', JSON.stringify(u));
+    localStorage.setItem('fraudops_page', 'app');
+    localStorage.setItem('fraudops_tab', 'dashboard');
   };
 
   const handleLogout = () => {
@@ -44,17 +106,25 @@ function AppInner() {
     setCurrentTab('dashboard');
     setSelectedCaseId(null);
     setPage('landing');
+    localStorage.removeItem('fraudops_user');
+    localStorage.removeItem('fraudops_page');
+    localStorage.removeItem('fraudops_tab');
+    localStorage.removeItem('fraudops_case_id');
   };
 
   const handleNavigate = (tab: string, caseId?: string) => {
     if (caseId) {
       setSelectedCaseId(caseId);
       setCurrentTab('casedetail');
+      localStorage.setItem('fraudops_tab', 'casedetail');
+      localStorage.setItem('fraudops_case_id', caseId);
     } else {
       if (tab === 'queue') {
         setSelectedCaseId(null);
+        localStorage.removeItem('fraudops_case_id');
       }
       setCurrentTab(tab);
+      localStorage.setItem('fraudops_tab', tab);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -62,6 +132,8 @@ function AppInner() {
   const handleSelectCase = (caseId: string) => {
     setSelectedCaseId(caseId);
     setCurrentTab('casedetail');
+    localStorage.setItem('fraudops_tab', 'casedetail');
+    localStorage.setItem('fraudops_case_id', caseId);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
