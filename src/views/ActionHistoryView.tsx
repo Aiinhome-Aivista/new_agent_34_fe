@@ -12,7 +12,9 @@ import {
   CheckCircle2,
   ExternalLink,
   History,
-  Shield
+  Shield,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
@@ -427,6 +429,10 @@ export const ActionHistoryView: React.FC<{ onNavigateToCase?: (caseId: string) =
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
+  // Pagination State - initially 4 rows per page
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(4);
+
   const fetchActions = async () => {
     setLoading(true);
     try {
@@ -442,6 +448,11 @@ export const ActionHistoryView: React.FC<{ onNavigateToCase?: (caseId: string) =
   useEffect(() => {
     fetchActions();
   }, []);
+
+  // Reset to page 1 on filter/search change
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, typeFilter, statusFilter]);
 
   // Filtered & Date-sorted actions
   const filteredActions = useMemo(() => {
@@ -478,6 +489,13 @@ export const ActionHistoryView: React.FC<{ onNavigateToCase?: (caseId: string) =
       return true;
     });
   }, [actions, searchTerm, typeFilter, statusFilter]);
+
+  const totalPages = Math.ceil(filteredActions.length / pageSize) || 1;
+
+  const paginatedActions = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredActions.slice(start, start + pageSize);
+  }, [filteredActions, page, pageSize]);
 
   // Metric counts
   const totalLocked = useMemo(() => {
@@ -657,7 +675,7 @@ export const ActionHistoryView: React.FC<{ onNavigateToCase?: (caseId: string) =
                 </tr>
               </thead>
               <tbody>
-                {filteredActions.map((a) => {
+                {paginatedActions.map((a) => {
                   const isBlocked = a.user?.status === 'BLOCKED';
                   const isLockAction = a.action_type === 'LOCK_USER' || a.action_type === 'BLOCK_USER';
                   const isUnlockAction = a.action_type === 'UNLOCK_USER';
@@ -811,6 +829,96 @@ export const ActionHistoryView: React.FC<{ onNavigateToCase?: (caseId: string) =
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Pagination Toolbar */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 18px',
+              borderTop: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-surface)',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <span style={{ fontSize: '0.84rem', color: 'var(--color-text-secondary)' }}>
+                Showing <strong>{filteredActions.length === 0 ? 0 : (page - 1) * pageSize + 1}</strong> – <strong>{Math.min(page * pageSize, filteredActions.length)}</strong> of <strong>{filteredActions.length}</strong> actions (Page {page} of {totalPages})
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)' }}>Per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: '0.78rem',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border)',
+                    backgroundColor: 'var(--color-input-background)',
+                    color: 'var(--color-text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value={4}>4 rows</option>
+                  <option value={8}>8 rows</option>
+                  <option value={12}>12 rows</option>
+                  <option value={20}>20 rows</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                icon={<ChevronLeft size={14} />}
+              >
+                Prev
+              </Button>
+
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPage(p)}
+                    style={{
+                      minWidth: '28px',
+                      height: '28px',
+                      padding: '0 6px',
+                      borderRadius: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: p === page ? 700 : 500,
+                      cursor: 'pointer',
+                      backgroundColor: p === page ? 'var(--color-primary)' : 'var(--color-input-background)',
+                      color: p === page ? '#FFFFFF' : 'var(--color-text-primary)',
+                      border: p === page ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+                    }}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                icon={<ChevronRight size={14} />}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         </Card>
       )}
