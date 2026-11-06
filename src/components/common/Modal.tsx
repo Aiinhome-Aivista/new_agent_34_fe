@@ -23,12 +23,18 @@ export const Modal: React.FC<ModalProps> = ({
   maxWidth = '640px',
   onSubmit,
 }) => {
-  // Lock body scroll and attach Escape key listener when modal is open
+  // Lock body & main content scroll and attach Escape key listener when modal is open
   useEffect(() => {
     if (!isOpen) return;
 
     const originalOverflow = document.body.style.overflow;
+    const mainEl = document.querySelector('main');
+    const originalMainOverflow = mainEl ? mainEl.style.overflow : '';
+
     document.body.style.overflow = 'hidden';
+    if (mainEl) {
+      mainEl.style.overflow = 'hidden';
+    }
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -40,6 +46,9 @@ export const Modal: React.FC<ModalProps> = ({
 
     return () => {
       document.body.style.overflow = originalOverflow;
+      if (mainEl) {
+        mainEl.style.overflow = originalMainOverflow;
+      }
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
@@ -60,6 +69,7 @@ export const Modal: React.FC<ModalProps> = ({
         justifyContent: 'center',
         zIndex: 9999,
         padding: '24px 16px',
+        overscrollBehavior: 'contain',
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {

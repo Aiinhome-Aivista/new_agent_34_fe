@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   RefreshCw,
   Lock,
@@ -35,6 +36,34 @@ const ActionAuditDetailModal: React.FC<ActionDetailModalProps> = ({ actionId, on
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Lock background scroll (both main content container and body) and handle Escape key
+  useEffect(() => {
+    const originalBodyOverflow = document.body.style.overflow;
+    const mainEl = document.querySelector('main');
+    const originalMainOverflow = mainEl ? mainEl.style.overflow : '';
+
+    document.body.style.overflow = 'hidden';
+    if (mainEl) {
+      mainEl.style.overflow = 'hidden';
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      if (mainEl) {
+        mainEl.style.overflow = originalMainOverflow;
+      }
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
   useEffect(() => {
     let isMounted = true;
     const fetchDetails = async () => {
@@ -60,7 +89,7 @@ const ActionAuditDetailModal: React.FC<ActionDetailModalProps> = ({ actionId, on
   const decision = data?.analyst_decision;
   const auditEvents = data?.audit_trail || [];
 
-  return (
+  return createPortal(
     <div
       style={{
         position: 'fixed',
@@ -74,9 +103,12 @@ const ActionAuditDetailModal: React.FC<ActionDetailModalProps> = ({ actionId, on
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '24px'
+        padding: '24px',
+        overscrollBehavior: 'contain'
       }}
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
     >
       <div
         style={{
@@ -89,7 +121,8 @@ const ActionAuditDetailModal: React.FC<ActionDetailModalProps> = ({ actionId, on
           flexDirection: 'column',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           border: '1px solid var(--color-border)',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          overscrollBehavior: 'contain'
         }}
         onClick={(e) => e.stopPropagation()}
         className="animate-scale-in"
@@ -169,7 +202,7 @@ const ActionAuditDetailModal: React.FC<ActionDetailModalProps> = ({ actionId, on
         </div>
 
         {/* Modal Body */}
-        <div style={{ padding: '24px 28px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ padding: '24px 28px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', overscrollBehavior: 'contain' }}>
           {loading ? (
             <div style={{ padding: '40px 0', display: 'flex', justifyContent: 'center' }}>
               <GlobalLoader size="md" />
@@ -415,7 +448,8 @@ const ActionAuditDetailModal: React.FC<ActionDetailModalProps> = ({ actionId, on
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
