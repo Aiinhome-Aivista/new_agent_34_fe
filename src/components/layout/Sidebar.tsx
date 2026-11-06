@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Shield,
+  ShieldAlert,
   BarChart3,
   Layers,
   Activity,
@@ -34,9 +35,18 @@ interface NavItem {
 }
 
 const getNavItems = (role?: string): NavItem[] => {
+  const isSeniorOrAdmin = role === 'ADMIN' || role === 'SENIOR_INVESTIGATOR';
+
   const items: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, description: 'Analytics & case metrics' },
     { id: 'queue', label: 'Case Queue', icon: Layers, description: 'Active investigation cases' },
+    {
+      id: 'escalations',
+      label: 'Escalation Desk',
+      icon: ShieldAlert,
+      description: 'Senior fraud review & committee escalations',
+      badge: isSeniorOrAdmin ? 'SENIOR' : undefined,
+    },
     { id: 'batch-ingest', label: 'Batch Ingestion', icon: FileSpreadsheet, description: 'Excel/CSV auto-trigger' },
     { id: 'actions', label: 'Action History', icon: Activity, description: 'Audit trail & past decisions' },
     // { id: 'integrations', label: 'Infrastructure', icon: Database, description: 'System health & integrations' },

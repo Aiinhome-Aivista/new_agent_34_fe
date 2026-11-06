@@ -8,6 +8,8 @@ import { DashboardView } from './views/DashboardView';
 import { QueueView } from './views/QueueView';
 import { CaseDetailView } from './views/CaseDetailView';
 import { ActionHistoryView } from './views/ActionHistoryView';
+import { EscalationsView } from './views/EscalationsView';
+import { NotificationCenter } from './components/common/NotificationCenter';
 // import { IntegrationsView } from './views/IntegrationsView';
 // import { SimulatorView } from './views/SimulatorView';
 import { AdminManagementView } from './views/AdminManagementView';
@@ -226,8 +228,15 @@ function AppInner() {
               </span>
             </div>
 
-            {/* Right side controls: Global Loader preview + user pill */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            {/* Right side controls: Notification Center + user pill */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {/* In-App Real-time Notification Center */}
+              <NotificationCenter
+                currentUser={user}
+                onSelectCase={handleSelectCase}
+                onNavigateEscalations={() => handleNavigate('escalations')}
+              />
+
               {/* User info pill */}
               <div
                 style={{
@@ -288,6 +297,12 @@ function AppInner() {
             {currentTab === 'queue' && (
               <QueueView
                 onSelectCase={handleSelectCase}
+              />
+            )}
+            {currentTab === 'escalations' && (
+              <EscalationsView
+                onSelectCase={handleSelectCase}
+                currentUser={user}
               />
             )}
             {currentTab === 'casedetail' && selectedCaseId && (
@@ -374,6 +389,7 @@ function getPageTitle(tab: string): string {
   const titles: Record<string, string> = {
     dashboard: 'Analytics Dashboard',
     queue: 'Case Queue',
+    escalations: 'Escalation Desk',
     casedetail: 'Case Detail',
     'batch-ingest': 'Batch Excel/CSV Ingestion & Live Auto-Trigger',
     actions: 'Action History',
@@ -389,6 +405,7 @@ function getPageSubtitle(tab: string, caseId: string | null): string {
   const subs: Record<string, string> = {
     dashboard: 'Live investigation metrics & KPIs',
     queue: 'Review and triage active fraud cases',
+    escalations: 'Senior Fraud Committee triage, decision authorization & executive oversight',
     'batch-ingest': 'Upload transaction files, monitor batch ingestion, and verify autonomous trigger execution',
     actions: 'Full audit trail of analyst decisions',
     integrations: 'System health & backend services',

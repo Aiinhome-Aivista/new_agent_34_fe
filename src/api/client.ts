@@ -58,6 +58,28 @@ export interface PersonaUser {
   demo_password?: string;
 }
 
+export interface AppNotificationItem {
+  id: string;
+  recipient_role?: string;
+  recipient_user_id?: string;
+  case_id?: string;
+  title: string;
+  message: string;
+  sender_name?: string;
+  sender_role?: string;
+  sender_email?: string;
+  target_user_id?: string;
+  category: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface NotificationListResponse {
+  items: AppNotificationItem[];
+  unread_count: number;
+  total: number;
+}
+
 export interface CompanyPolicy {
   id: string;
   document_key: string;
@@ -661,6 +683,39 @@ export const apiClient = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.message || 'Failed to submit evidence');
     }
+    return res.json();
+  },
+
+  // --- Notifications & Escalation Desk Endpoints ---
+  async getNotifications(role?: string, userId?: string): Promise<NotificationListResponse> {
+    const params = new URLSearchParams();
+    if (role) params.set('role', role);
+    if (userId) params.set('user_id', userId);
+    const res = await fetch(`${API_BASE}/notifications?${params.toString()}`);
+    if (!res.ok) throw new Error('Failed to fetch notifications');
+    return res.json();
+  },
+
+  async markNotificationRead(id: string): Promise<void> {
+    await fetch(`${API_BASE}/notifications/${id}/read`, { method: 'POST' });
+  },
+
+  async markAllNotificationsRead(role?: string, userId?: string): Promise<void> {
+    await fetch(`${API_BASE}/notifications/read-all`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role, user_id: userId }),
+    });
+  },
+
+  async getEscalationStats(): Promise<{
+    total_escalated: number;
+    critical_escalations: number;
+    high_escalations: number;
+    active_cases: any[];
+  }> {
+    const res = await fetch(`${API_BASE}/notifications/escalations/stats`);
+    if (!res.ok) throw new Error('Failed to fetch escalation stats');
     return res.json();
   }
 };

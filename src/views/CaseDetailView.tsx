@@ -12,6 +12,7 @@ import {
   Clock,
   UserX,
   UserCheck,
+  Lock,
   FileSearch,
   ArrowUpRight,
   ShieldAlert,
@@ -89,6 +90,10 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
   const canManageDocTypes =
     currentUser?.role === 'ADMIN' ||
     (currentUser?.role && currentUser.role.includes('INVESTIGATOR'));
+
+  const isCaseEscalated = caseData?.status === 'ESCALATED';
+  const isSeniorOrAdmin =
+    currentUser?.role === 'ADMIN' || currentUser?.role === 'SENIOR_INVESTIGATOR';
 
   const handleAddCustomDocType = () => {
     if (!customDocName.trim()) return;
@@ -541,34 +546,90 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
 
           {/* Decision Submission Panel (The 5 Actions) */}
           <Card title="Decision Gateway: Analyst Authorization">
-            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
-              Enforce human-in-the-loop governance. Select an authorized operational action and record immutable justification.
-            </p>
-            <form onSubmit={handleSubmitDecision} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Action Selection
-                </label>
-                <select
-                  value={decision}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setDecision(val);
-                    if (val === 'LOCK_USER') setPolicyRef('FRAUD_SOP_04_USER_LOCK');
-                    else if (val === 'UNLOCK_USER') setPolicyRef('FRAUD_SOP_02_USER_RESTORE');
-                    else if (val === 'REQUEST_EVIDENCE') setPolicyRef('FRAUD_SOP_05_EVIDENCE_REQUEST');
-                    else if (val === 'ESCALATE') setPolicyRef('FRAUD_SOP_08_COMMITTEE_ESCALATION');
-                    else if (val === 'MONITOR') setPolicyRef('FRAUD_SOP_01_WATCHLIST_MONITOR');
-                  }}
-                  style={{ width: '100%', fontWeight: 600 }}
-                >
-                  <option value="LOCK_USER">Lock User (Block Account &amp; Authorize Action)</option>
-                  <option value="UNLOCK_USER">Unlock User (Restore Active &amp; Resolve Case)</option>
-                  <option value="REQUEST_EVIDENCE">Request Evidence (Request Documents / Proof)</option>
-                  <option value="ESCALATE">Escalate (Refer to Senior Committee)</option>
-                  <option value="MONITOR">Monitor (Place on Watchlist)</option>
-                </select>
+            {isCaseEscalated && !isSeniorOrAdmin ? (
+              <div
+                style={{
+                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: '10px',
+                  padding: '20px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '14px',
+                }}
+              >
+                <Lock size={24} style={{ color: '#DC2626', flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#991B1B' }}>
+                    Case Escalated to Senior Fraud Committee (Execution Locked)
+                  </div>
+                  <p style={{ margin: '6px 0 0 0', fontSize: '0.85rem', color: '#B91C1C', lineHeight: 1.5 }}>
+                    This case has been officially escalated. Under risk governance policies, only <strong>Senior Investigators</strong> and <strong>Administrators</strong> are authorized to execute actions (Lock, Unlock, Request Evidence, or Resolve) on this case.
+                  </p>
+                  <div
+                    style={{
+                      marginTop: '12px',
+                      padding: '8px 12px',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      borderRadius: '6px',
+                      fontSize: '0.78rem',
+                      color: '#7F1D1D',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Active Persona: {currentUser?.role || 'INVESTIGATOR'} (Viewing in Read-Only Mode)
+                  </div>
+                </div>
               </div>
+            ) : (
+              <>
+                {isCaseEscalated && isSeniorOrAdmin && (
+                  <div
+                    style={{
+                      backgroundColor: 'rgba(22, 163, 74, 0.08)',
+                      border: '1px solid #86EFAC',
+                      borderRadius: '8px',
+                      padding: '12px 16px',
+                      marginBottom: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                    }}
+                  >
+                    <UserCheck size={20} style={{ color: '#16A34A', flexShrink: 0 }} />
+                    <div style={{ fontSize: '0.82rem', color: '#15803D' }}>
+                      <strong>Senior Executive Authority Active ({currentUser?.role}):</strong> This case is in Senior Escalation review. You hold executive authorization to commit decisions, unlock/lock users, or resolve the escalation.
+                    </div>
+                  </div>
+                )}
+                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+                  Enforce human-in-the-loop governance. Select an authorized operational action and record immutable justification.
+                </p>
+                <form onSubmit={handleSubmitDecision} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '6px' }}>
+                      Action Selection
+                    </label>
+                    <select
+                      value={decision}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setDecision(val);
+                        if (val === 'LOCK_USER') setPolicyRef('FRAUD_SOP_04_USER_LOCK');
+                        else if (val === 'UNLOCK_USER') setPolicyRef('FRAUD_SOP_02_USER_RESTORE');
+                        else if (val === 'REQUEST_EVIDENCE') setPolicyRef('FRAUD_SOP_05_EVIDENCE_REQUEST');
+                        else if (val === 'ESCALATE') setPolicyRef('FRAUD_SOP_08_COMMITTEE_ESCALATION');
+                        else if (val === 'MONITOR') setPolicyRef('FRAUD_SOP_01_WATCHLIST_MONITOR');
+                      }}
+                      style={{ width: '100%', fontWeight: 600 }}
+                    >
+                      <option value="LOCK_USER">Lock User (Block Account &amp; Authorize Action)</option>
+                      <option value="UNLOCK_USER">Unlock User (Restore Active &amp; Resolve Case)</option>
+                      <option value="REQUEST_EVIDENCE">Request Evidence (Request Documents / Proof)</option>
+                      {!isCaseEscalated && <option value="ESCALATE">Escalate (Refer to Senior Committee)</option>}
+                      <option value="MONITOR">Monitor (Place on Watchlist)</option>
+                    </select>
+                  </div>
 
               {/* Requirement 1: When REQUEST_EVIDENCE is selected, hide Policy Ref, Mandatory Audit Rationale, and Commit Button */}
               {decision !== 'REQUEST_EVIDENCE' && (
@@ -903,6 +964,8 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                   </div>
                 )}
               </div>
+            )}
+              </>
             )}
           </Card>
         </div>
