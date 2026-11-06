@@ -121,3 +121,32 @@ input:focus, select:focus, textarea:focus {
 .modal-content-animate {
   animation: modalContentEnter 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Executed Action History Table Row */
+.action-history-row {
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-divider, #E2E8F0);
+  transition: background-color var(--transition-fast, 150ms ease);
+}
+
+.action-history-row:hover {
+  background-color: rgba(255, 90, 20, 0.06);
+  background-color: color-mix(in srgb, var(--color-primary) 7%, transparent);
+}
+
+[data-theme='dark'] .action-history-row:hover {
+  background-color: rgba(255, 122, 69, 0.14);
+  background-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-background, #181B22));
+}
+
+[data-theme='contrast'] .action-history-row:hover {
+  background-color: rgba(255, 90, 20, 0.2);
+  background-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .action-history-row:hover {
+    background-color: rgba(255, 122, 69, 0.14);
+    background-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-background, #181B22));
+  }
+}

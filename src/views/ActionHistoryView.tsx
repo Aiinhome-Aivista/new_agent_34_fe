@@ -718,13 +718,7 @@ export const ActionHistoryView: React.FC<{ onNavigateToCase?: (caseId: string) =
                     <tr
                       key={a.id}
                       onClick={() => setSelectedActionId(a.id)}
-                      style={{
-                        borderBottom: '1px solid var(--color-divider, #E2E8F0)',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.15s ease'
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(241, 245, 249, 0.7)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                      className="action-history-row"
                     >
                       {/* Date & Time */}
                       <td style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>
@@ -851,7 +845,16 @@ export const ActionHistoryView: React.FC<{ onNavigateToCase?: (caseId: string) =
                             gap: '6px',
                             fontSize: '0.8rem',
                             fontWeight: 600,
-                            color: 'var(--color-primary)'
+                            color: 'var(--color-primary)',
+                            transition: 'all var(--transition-fast, 150ms ease)'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(255, 90, 20, 0.12)';
+                            e.currentTarget.style.borderColor = 'var(--color-primary)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                            e.currentTarget.style.borderColor = 'var(--color-border)';
                           }}
                         >
                           <Eye size={13} />
