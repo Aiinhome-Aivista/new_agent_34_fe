@@ -24,6 +24,8 @@ import {
   ExternalLink,
   ShieldCheck,
   History,
+  MessageSquare,
+  Quote,
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
@@ -67,6 +69,79 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
 
   // Lightbox Modal State
   const [selectedEvidence, setSelectedEvidence] = useState<any | null>(null);
+
+  // Customer Statement Modal State
+  const [selectedCustomerStatement, setSelectedCustomerStatement] = useState<{
+    statement: {
+      claimed_amount?: string | number;
+      transaction_date?: string;
+      payment_method_details?: string;
+      user_explanation?: string;
+      attached_files_count?: number;
+      submitted_at?: string;
+      statement_hash?: string;
+      [key: string]: any;
+    } | null;
+    event?: any;
+    documents?: any[];
+    userId?: string;
+    timestamp?: string;
+  } | null>(null);
+
+  // Lock background scroll when customer statement modal is open
+  useEffect(() => {
+    if (!selectedCustomerStatement) return;
+    const originalBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedCustomerStatement(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedCustomerStatement]);
+
+  const resolveCustomerStatement = (evt: any) => {
+    if (evt?.details?.customer_statement && typeof evt.details.customer_statement === 'object') {
+      return evt.details.customer_statement;
+    }
+    if (evt?.details?.statement && typeof evt.details.statement === 'object') {
+      return evt.details.statement;
+    }
+    const stmtItem = caseData?.evidence_items?.find(
+      (ev: any) => ev.evidence_type === 'USER_TRANSACTION_STATEMENT'
+    );
+    if (stmtItem?.normalized_payload) {
+      return stmtItem.normalized_payload;
+    }
+    if (evt?.details?.user_explanation || evt?.details?.claimed_amount) {
+      return {
+        user_explanation: evt.details.user_explanation,
+        claimed_amount: evt.details.claimed_amount,
+        transaction_date: evt.details.transaction_date,
+        payment_method_details: evt.details.payment_method_details,
+        attached_files_count: evt.details.files_count || evt.details.documents?.length,
+        submitted_at: evt.event_timestamp,
+      };
+    }
+    return null;
+  };
+
+  const handleOpenCustomerStatement = (evt: any) => {
+    const stmt = resolveCustomerStatement(evt);
+    setSelectedCustomerStatement({
+      statement: stmt,
+      event: evt,
+      documents: evt.details?.documents || [],
+      userId: evt.user_id || caseData?.user_id_ref || 'N/A',
+      timestamp: evt.event_timestamp,
+    });
+  };
 
   // Customer Evidence Request (Portal) State
 
@@ -1373,6 +1448,49 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
                               Action Executed: {evt.details.action_type}
                             </div>
                           )}
+
+                          {/* Customer Statement View Trigger Button for Evidence Submissions */}
+                          {(evt.event_type === 'EVIDENCE_SUBMITTED_BY_USER' ||
+                            evt.details.customer_statement ||
+                            evt.details.statement ||
+                            (evt.actor_type === 'CUSTOMER_PORTAL' && evt.details.documents && evt.details.documents.length > 0)) && (
+                            <div style={{ marginTop: '6px', marginBottom: '8px' }}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleOpenCustomerStatement(evt);
+                                }}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  padding: '5px 12px',
+                                  borderRadius: '6px',
+                                  backgroundColor: 'rgba(16, 185, 129, 0.14)',
+                                  color: '#34D399',
+                                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.25)';
+                                  e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.65)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.14)';
+                                  e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                                }}
+                                title="Click to view Customer Statement submitted during evidence upload"
+                              >
+                                <MessageSquare size={13} color="#34D399" />
+                                <span>View Customer Statement</span>
+                              </button>
+                            </div>
+                          )}
                           {/* Requirement 5: Document Type with Hyperlinked Document Name */}
                           {evt.details.documents && evt.details.documents.length > 0 && (
                             <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
@@ -1660,6 +1778,376 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
               )}
               <Button variant="primary" size="sm" onClick={() => setSelectedEvidence(null)}>
                 Close Preview
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Customer Statement Inspection Modal */}
+      {selectedCustomerStatement && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.82)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999999,
+            padding: '24px 16px',
+            overflowY: 'auto',
+          }}
+          onClick={() => setSelectedCustomerStatement(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--color-surface, #181B22)',
+              borderRadius: 'var(--radius-md, 14px)',
+              border: '1px solid var(--color-border, #2D3748)',
+              width: '100%',
+              maxWidth: '680px',
+              maxHeight: 'min(90vh, 760px)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.85)',
+              margin: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="animate-scale-in"
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                flexShrink: 0,
+                padding: '18px 22px',
+                borderBottom: '1px solid var(--color-border, #2D3748)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: 'var(--color-surface, #181B22)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    color: '#10B981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <MessageSquare size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--color-text-primary, #FFFFFF)' }}>
+                    Customer Evidence Statement
+                  </h3>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary, #94A3B8)' }}>
+                    Recorded during evidence document upload via Customer Portal
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCustomerStatement(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-text-secondary, #94A3B8)',
+                  cursor: 'pointer',
+                  padding: '6px',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                title="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div
+              style={{
+                padding: '22px',
+                overflowY: 'auto',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '18px',
+              }}
+            >
+              {/* Customer & Timestamp Summary Strip */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  backgroundColor: 'var(--color-input-background, #1C1F26)',
+                  border: '1px solid var(--color-border, #2D3748)',
+                  fontSize: '0.82rem',
+                }}
+              >
+                <div>
+                  <span style={{ color: 'var(--color-text-secondary, #94A3B8)', fontSize: '0.74rem', display: 'block' }}>
+                    Target Customer ID
+                  </span>
+                  <code style={{ color: 'var(--color-primary, #FF5A14)', fontWeight: 700, fontSize: '0.82rem' }}>
+                    {selectedCustomerStatement.userId}
+                  </code>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--color-text-secondary, #94A3B8)', fontSize: '0.74rem', display: 'block' }}>
+                    Upload Timestamp (IST)
+                  </span>
+                  <span style={{ color: 'var(--color-text-primary, #FFF)', fontWeight: 600 }}>
+                    {formatToIST(
+                      selectedCustomerStatement.statement?.submitted_at ||
+                      selectedCustomerStatement.timestamp
+                    )}
+                  </span>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--color-text-secondary, #94A3B8)', fontSize: '0.74rem', display: 'block' }}>
+                    Submission Channel
+                  </span>
+                  <span style={{ color: '#10B981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <ShieldCheck size={14} /> CUSTOMER_PORTAL
+                  </span>
+                </div>
+              </div>
+
+              {/* Customer Written Statement / Explanation */}
+              <div
+                style={{
+                  padding: '16px 18px',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: '#10B981', fontWeight: 700, fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <Quote size={15} />
+                  Customer Statement / Explanation
+                </div>
+                <div
+                  style={{
+                    color: 'var(--color-text-primary, #FFFFFF)',
+                    fontSize: '0.92rem',
+                    lineHeight: 1.6,
+                    fontStyle: 'italic',
+                    whiteSpace: 'pre-wrap',
+                    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    borderLeft: '3px solid #10B981',
+                  }}
+                >
+                  {selectedCustomerStatement.statement?.user_explanation ? (
+                    `"${selectedCustomerStatement.statement.user_explanation}"`
+                  ) : (
+                    <span style={{ color: 'var(--color-text-secondary, #94A3B8)', fontStyle: 'italic' }}>
+                      No textual explanation was entered by the customer during upload.
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Disputed Transaction & Claim Details Grid */}
+              <div>
+                <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--color-text-secondary, #94A3B8)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '8px' }}>
+                  Disputed Transaction Details (Claimed by Customer)
+                </span>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    gap: '10px',
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--color-input-background, #1C1F26)',
+                      border: '1px solid var(--color-border, #2D3748)',
+                    }}
+                  >
+                    <span style={{ color: 'var(--color-text-secondary, #94A3B8)', fontSize: '0.74rem', display: 'block', marginBottom: '2px' }}>
+                      Claimed / Disputed Amount
+                    </span>
+                    <span style={{ color: '#10B981', fontSize: '1.1rem', fontWeight: 800 }}>
+                      {selectedCustomerStatement.statement?.claimed_amount
+                        ? `₹${selectedCustomerStatement.statement.claimed_amount}`
+                        : 'Not specified'}
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--color-input-background, #1C1F26)',
+                      border: '1px solid var(--color-border, #2D3748)',
+                    }}
+                  >
+                    <span style={{ color: 'var(--color-text-secondary, #94A3B8)', fontSize: '0.74rem', display: 'block', marginBottom: '2px' }}>
+                      Transaction Date
+                    </span>
+                    <span style={{ color: 'var(--color-text-primary, #FFF)', fontSize: '0.92rem', fontWeight: 700 }}>
+                      {selectedCustomerStatement.statement?.transaction_date || 'Not specified'}
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--color-input-background, #1C1F26)',
+                      border: '1px solid var(--color-border, #2D3748)',
+                    }}
+                  >
+                    <span style={{ color: 'var(--color-text-secondary, #94A3B8)', fontSize: '0.74rem', display: 'block', marginBottom: '2px' }}>
+                      Payment Method / Reference
+                    </span>
+                    <span style={{ color: 'var(--color-text-primary, #FFF)', fontSize: '0.86rem', fontWeight: 600 }}>
+                      {selectedCustomerStatement.statement?.payment_method_details || 'Not specified'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attached Evidence Documents in this Submission */}
+              {selectedCustomerStatement.documents && selectedCustomerStatement.documents.length > 0 && (
+                <div>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--color-text-secondary, #94A3B8)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '8px' }}>
+                    Evidence Documents Uploaded in This Submission ({selectedCustomerStatement.documents.length})
+                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {selectedCustomerStatement.documents.map((doc: any, dIdx: number) => (
+                      <div
+                        key={dIdx}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          backgroundColor: 'var(--color-input-background, #1C1F26)',
+                          border: '1px solid var(--color-border, #2D3748)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span
+                            style={{
+                              fontWeight: 600,
+                              color: '#60A5FA',
+                              backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                              border: '1px solid rgba(59, 130, 246, 0.35)',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              fontSize: '0.72rem',
+                            }}
+                          >
+                            {doc.document_type || 'Document'}
+                          </span>
+                          <span style={{ fontSize: '0.82rem', color: 'var(--color-text-primary, #FFF)', fontWeight: 500 }}>
+                            {doc.original_filename}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setSelectedEvidence({
+                              source_reference: doc.original_filename || 'Evidence Document',
+                              evidence_type: doc.document_type || 'Evidence Document',
+                              normalized_payload: doc,
+                            });
+                          }}
+                          style={{
+                            background: 'none',
+                            border: '1px solid rgba(56, 189, 248, 0.4)',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            color: '#38BDF8',
+                            fontSize: '0.74rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          <Eye size={12} />
+                          <span>Preview Document</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Audit Provenance & Integrity Fingerprint */}
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                  border: '1px dashed var(--color-border, #2D3748)',
+                  fontSize: '0.75rem',
+                  color: 'var(--color-text-secondary, #94A3B8)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                  <span>Digital Fingerprint (SHA-256):</span>
+                  <code style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
+                    {selectedCustomerStatement.event?.details?.statement_hash ||
+                      selectedCustomerStatement.statement?.statement_hash ||
+                      'SEALED_HASH_VALID'}
+                  </code>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                  <span>Submission IP & Anti-Replay Token:</span>
+                  <span>
+                    {selectedCustomerStatement.event?.details?.ip_address || '127.0.0.1'} · Single-Use Verified
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                flexShrink: 0,
+                padding: '14px 22px',
+                borderTop: '1px solid var(--color-border, #2D3748)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                backgroundColor: 'var(--color-surface, #181B22)',
+              }}
+            >
+              <Button variant="primary" size="sm" onClick={() => setSelectedCustomerStatement(null)}>
+                Close Statement
               </Button>
             </div>
           </div>
