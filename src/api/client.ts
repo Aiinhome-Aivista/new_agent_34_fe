@@ -116,6 +116,55 @@ export interface SectionSummary {
   active_parameters: number;
 }
 
+export interface MicroserviceConnector {
+  id: string;
+  service_key: string;
+  service_name: string;
+  service_category: string;
+  description: string;
+  http_method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  base_url: string;
+  endpoint_path: string;
+  full_url?: string;
+  auth_type: 'NONE' | 'BEARER_TOKEN' | 'API_KEY' | 'BASIC_AUTH' | 'CUSTOM_HEADER';
+  auth_header_key?: string;
+  token_preview?: string;
+  auth_token?: string;
+  auth_token_raw?: string;
+  custom_headers?: Record<string, string>;
+  sample_payload?: any;
+  sample_response?: any;
+  payload_schema?: string;
+  timeout_ms: number;
+  retry_count: number;
+  is_mock_enabled: boolean;
+  is_active: boolean;
+  health_status: 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE' | 'UNKNOWN';
+  last_tested_at?: string;
+  last_latency_ms?: number;
+  last_status_code?: number;
+  last_error_message?: string;
+  created_at?: string;
+  updated_at?: string;
+  updated_by?: string;
+}
+
+export interface ConnectorTestResult {
+  success: boolean;
+  execution_mode: 'MOCK_SIMULATION' | 'LIVE_NETWORK';
+  target_url: string;
+  http_method: string;
+  status_code: number;
+  latency_ms: number;
+  headers_sent: Record<string, string>;
+  payload_sent?: any;
+  response_body?: any;
+  error?: string;
+  hint?: string;
+  tested_at: string;
+  health_status: 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE';
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 export const apiClient = {
@@ -716,6 +765,92 @@ export const apiClient = {
   }> {
     const res = await fetch(`${API_BASE}/notifications/escalations/stats`);
     if (!res.ok) throw new Error('Failed to fetch escalation stats');
+    return res.json();
+  },
+
+  // -------------------------------------------------------------
+  // Dynamic Microservice Connectors & API Registry
+  // -------------------------------------------------------------
+  async getConnectors(category?: string, search?: string, isActive?: boolean): Promise<MicroserviceConnector[]> {
+    const params = new URLSearchParams();
+    if (category && category !== 'ALL') params.set('category', category);
+    if (search) params.set('search', search);
+    if (isActive !== undefined) params.set('is_active', String(isActive));
+    const res = await fetch(`${API_BASE}/admin/connectors?${params.toString()}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to fetch microservice connectors');
+    }
+    return res.json();
+  },
+
+  async getConnector(id: string): Promise<MicroserviceConnector> {
+    const res = await fetch(`${API_BASE}/admin/connectors/${id}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to fetch connector details');
+    }
+    return res.json();
+  },
+
+  async createConnector(data: Partial<MicroserviceConnector>): Promise<MicroserviceConnector> {
+    const res = await fetch(`${API_BASE}/admin/connectors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to register microservice connector');
+    }
+    return res.json();
+  },
+
+  async updateConnector(id: string, data: Partial<MicroserviceConnector>): Promise<MicroserviceConnector> {
+    const res = await fetch(`${API_BASE}/admin/connectors/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to update connector configuration');
+    }
+    return res.json();
+  },
+
+  async deleteConnector(id: string): Promise<{ message: string }> {
+    const res = await fetch(`${API_BASE}/admin/connectors/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to delete connector');
+    }
+    return res.json();
+  },
+
+  async toggleMockConnector(id: string): Promise<{ id: string; service_key: string; is_mock_enabled: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/admin/connectors/${id}/toggle-mock`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to toggle mock mode');
+    }
+    return res.json();
+  },
+
+  async testConnector(id: string, customPayload?: any, testParams?: Record<string, string>): Promise<ConnectorTestResult> {
+    const res = await fetch(`${API_BASE}/admin/connectors/${id}/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ custom_payload: customPayload, test_params: testParams }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to execute probe on connector');
+    }
     return res.json();
   }
 };

@@ -14,13 +14,29 @@ import {
   UploadCloud,
   BookOpen,
   FileCheck,
+  Server,
+  Zap,
+  Play,
+  Copy,
+  Check,
+  Globe,
+  Activity,
+  ToggleLeft,
+  ToggleRight,
+  Code,
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { Modal } from '../components/common/Modal';
 import { GlobalLoader } from '../components/common/GlobalLoader';
 import { apiClient } from '../api/client';
-import type { CompanyPolicy, FraudParameter, SectionSummary } from '../api/client';
+import type {
+  CompanyPolicy,
+  FraudParameter,
+  SectionSummary,
+  MicroserviceConnector,
+  ConnectorTestResult
+} from '../api/client';
 import { useTaskProgress } from '../context/TaskProgressContext';
 
 export const AdminManagementView: React.FC = () => {
@@ -33,7 +49,7 @@ export const AdminManagementView: React.FC = () => {
   const isDocUploading = activeTask?.type === 'document_upload' && activeTask?.status === 'running';
   const displayedDocResult = (activeTask?.type === 'document_upload' && activeTask?.result) || latestDocResult;
 
-  const [activeTab, setActiveTab] = useState<'policies' | 'parameters' | 'knowledge'>('policies');
+  const [activeTab, setActiveTab] = useState<'policies' | 'parameters' | 'knowledge' | 'connectors'>('policies');
 
   // Policies State
   const [policies, setPolicies] = useState<CompanyPolicy[]>([]);
@@ -64,6 +80,41 @@ export const AdminManagementView: React.FC = () => {
     action_impact: 'ADVISORY',
     version: '1.0',
     description: '',
+  });
+
+  // Microservice Connectors State
+  const [connectors, setConnectors] = useState<MicroserviceConnector[]>([]);
+  const [connectorCategoryFilter, setConnectorCategoryFilter] = useState('ALL');
+  const [connectorSearch, setConnectorSearch] = useState('');
+  const [loadingConnectors, setLoadingConnectors] = useState(false);
+  const [activeInspectorTabs, setActiveInspectorTabs] = useState<Record<string, 'payload' | 'response' | 'probe'>>({});
+  const [probeInputs, setProbeInputs] = useState<Record<string, string>>({});
+  const [probingState, setProbingState] = useState<Record<string, boolean>>({});
+  const [probeResults, setProbeResults] = useState<Record<string, ConnectorTestResult>>({});
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Connector Modal State
+  const [isConnectorModalOpen, setIsConnectorModalOpen] = useState(false);
+  const [editingConnector, setEditingConnector] = useState<MicroserviceConnector | null>(null);
+  const [connectorForm, setConnectorForm] = useState({
+    service_key: '',
+    service_name: '',
+    service_category: 'IDENTITY',
+    description: '',
+    http_method: 'GET' as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+    base_url: '',
+    endpoint_path: '',
+    auth_type: 'BEARER_TOKEN' as 'NONE' | 'BEARER_TOKEN' | 'API_KEY' | 'BASIC_AUTH' | 'CUSTOM_HEADER',
+    auth_header_key: 'Authorization',
+    auth_token: '',
+    custom_headers: '{\n  "Content-Type": "application/json"\n}',
+    sample_payload: '{\n  "query": {}\n}',
+    sample_response: '{\n  "status": "success"\n}',
+    payload_schema: '',
+    timeout_ms: 5000,
+    retry_count: 2,
+    is_mock_enabled: true,
+    is_active: true,
   });
 
   // Global Messages
@@ -397,6 +448,271 @@ export const AdminManagementView: React.FC = () => {
     }
   };
 
+  // Load Connectors
+  const loadConnectors = async () => {
+    setLoadingConnectors(true);
+    try {
+      const data = await apiClient.getConnectors(
+        connectorCategoryFilter !== 'ALL' ? connectorCategoryFilter : undefined,
+        connectorSearch.trim() || undefined
+      );
+      setConnectors(data);
+    } catch (err: any) {
+      console.error('Failed to load connectors', err);
+    } finally {
+      setLoadingConnectors(false);
+    }
+  };
+
+  useEffect(() => {
+    loadConnectors();
+  }, [connectorCategoryFilter]);
+
+  const openNewConnectorModal = () => {
+    setEditingConnector(null);
+    setConnectorForm({
+      service_key: '',
+      service_name: '',
+      service_category: 'IDENTITY',
+      description: '',
+      http_method: 'GET',
+      base_url: 'https://',
+      endpoint_path: '/api/v1/',
+      auth_type: 'BEARER_TOKEN',
+      auth_header_key: 'Authorization',
+      auth_token: '',
+      custom_headers: '{\n  "Content-Type": "application/json"\n}',
+      sample_payload: '{\n  "query": {}\n}',
+      sample_response: '{\n  "status": "success"\n}',
+      payload_schema: '',
+      timeout_ms: 5000,
+      retry_count: 2,
+      is_mock_enabled: true,
+      is_active: true,
+    });
+    setIsConnectorModalOpen(true);
+  };
+
+  const openEditConnectorModal = (c: MicroserviceConnector) => {
+    setEditingConnector(c);
+    setConnectorForm({
+      service_key: c.service_key,
+      service_name: c.service_name,
+      service_category: c.service_category,
+      description: c.description || '',
+      http_method: c.http_method,
+      base_url: c.base_url,
+      endpoint_path: c.endpoint_path,
+      auth_type: c.auth_type,
+      auth_header_key: c.auth_header_key || 'Authorization',
+      auth_token: '',
+      custom_headers: c.custom_headers ? JSON.stringify(c.custom_headers, null, 2) : '{}',
+      sample_payload: c.sample_payload ? JSON.stringify(c.sample_payload, null, 2) : '{}',
+      sample_response: c.sample_response ? JSON.stringify(c.sample_response, null, 2) : '{}',
+      payload_schema: c.payload_schema || '',
+      timeout_ms: c.timeout_ms || 5000,
+      retry_count: c.retry_count || 2,
+      is_mock_enabled: c.is_mock_enabled,
+      is_active: c.is_active,
+    });
+    setIsConnectorModalOpen(true);
+  };
+
+  const handleSaveConnector = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!connectorForm.service_key.trim() || !connectorForm.service_name.trim() || !connectorForm.base_url.trim() || !connectorForm.endpoint_path.trim()) {
+      alert('Service Key, Name, Base URL, and Endpoint Path are required.');
+      return;
+    }
+
+    let parsedHeaders = {};
+    let parsedPayload = {};
+    let parsedResponse = {};
+    try {
+      if (connectorForm.custom_headers.trim()) parsedHeaders = JSON.parse(connectorForm.custom_headers);
+    } catch {
+      alert('Custom Headers must be valid JSON.');
+      return;
+    }
+    try {
+      if (connectorForm.sample_payload.trim()) parsedPayload = JSON.parse(connectorForm.sample_payload);
+    } catch {
+      alert('Sample Payload must be valid JSON.');
+      return;
+    }
+    try {
+      if (connectorForm.sample_response.trim()) parsedResponse = JSON.parse(connectorForm.sample_response);
+    } catch {
+      alert('Sample Response must be valid JSON.');
+      return;
+    }
+
+    const payload: Partial<MicroserviceConnector> = {
+      service_key: connectorForm.service_key.trim().toUpperCase(),
+      service_name: connectorForm.service_name.trim(),
+      service_category: connectorForm.service_category,
+      description: connectorForm.description.trim(),
+      http_method: connectorForm.http_method,
+      base_url: connectorForm.base_url.trim(),
+      endpoint_path: connectorForm.endpoint_path.trim(),
+      auth_type: connectorForm.auth_type,
+      auth_header_key: connectorForm.auth_header_key.trim(),
+      custom_headers: parsedHeaders,
+      sample_payload: parsedPayload,
+      sample_response: parsedResponse,
+      payload_schema: connectorForm.payload_schema.trim(),
+      timeout_ms: Number(connectorForm.timeout_ms),
+      retry_count: Number(connectorForm.retry_count),
+      is_mock_enabled: connectorForm.is_mock_enabled,
+      is_active: connectorForm.is_active,
+    };
+    if (connectorForm.auth_token.trim()) {
+      payload.auth_token = connectorForm.auth_token.trim();
+    }
+
+    try {
+      if (editingConnector) {
+        await apiClient.updateConnector(editingConnector.id, payload);
+        setFeedback({ type: 'success', message: `Connector "${connectorForm.service_name}" updated successfully.` });
+      } else {
+        await apiClient.createConnector(payload);
+        setFeedback({ type: 'success', message: `Connector "${connectorForm.service_name}" registered successfully.` });
+      }
+      setIsConnectorModalOpen(false);
+      loadConnectors();
+    } catch (err: any) {
+      alert(err.message || 'Failed to save connector');
+    }
+  };
+
+  const handleDeleteConnector = async (connector: MicroserviceConnector) => {
+    if (!window.confirm(`Are you sure you want to remove connector "${connector.service_name}"?`)) {
+      return;
+    }
+    try {
+      await apiClient.deleteConnector(connector.id);
+      setFeedback({ type: 'success', message: `Connector "${connector.service_name}" removed successfully.` });
+      loadConnectors();
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Failed to remove connector' });
+    }
+  };
+
+  const handleToggleMock = async (connector: MicroserviceConnector) => {
+    try {
+      const res = await apiClient.toggleMockConnector(connector.id);
+      setFeedback({ type: 'success', message: res.message });
+      setConnectors((prev) =>
+        prev.map((c) => (c.id === connector.id ? { ...c, is_mock_enabled: res.is_mock_enabled } : c))
+      );
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Failed to toggle mock mode' });
+    }
+  };
+
+  const handleRunProbe = async (connector: MicroserviceConnector) => {
+    setProbingState((prev) => ({ ...prev, [connector.id]: true }));
+    try {
+      let customPayload: any = connector.sample_payload;
+      const rawInput = probeInputs[connector.id];
+      if (rawInput && rawInput.trim()) {
+        try {
+          customPayload = JSON.parse(rawInput);
+        } catch {
+          // fallback
+        }
+      }
+      const res = await apiClient.testConnector(connector.id, customPayload);
+      setProbeResults((prev) => ({ ...prev, [connector.id]: res }));
+      setConnectors((prev) =>
+        prev.map((c) =>
+          c.id === connector.id
+            ? {
+                ...c,
+                health_status: res.health_status,
+                last_tested_at: res.tested_at,
+                last_latency_ms: res.latency_ms,
+                last_status_code: res.status_code,
+              }
+            : c
+        )
+      );
+      setFeedback({
+        type: res.success ? 'success' : 'error',
+        message: `Probe ${res.execution_mode === 'MOCK_SIMULATION' ? '[MOCK]' : '[LIVE]'}: ${res.status_code} in ${res.latency_ms}ms`,
+      });
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Failed to execute probe' });
+    } finally {
+      setProbingState((prev) => ({ ...prev, [connector.id]: false }));
+    }
+  };
+
+  const handlePingAll = async () => {
+    setFeedback({ type: 'success', message: 'Testing all microservice connections in parallel...' });
+    try {
+      await Promise.all(connectors.map((c) => apiClient.testConnector(c.id).catch(() => null)));
+      loadConnectors();
+      setFeedback({ type: 'success', message: 'All 8 microservices probed and telemetry refreshed successfully.' });
+    } catch (e: any) {
+      setFeedback({ type: 'error', message: e.message || 'Failed to ping all microservices' });
+    }
+  };
+
+  const handleCopyText = (key: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const filteredConnectors = connectors.filter((c) => {
+    if (!connectorSearch.trim()) return true;
+    const q = connectorSearch.toLowerCase();
+    return (
+      c.service_name.toLowerCase().includes(q) ||
+      c.service_key.toLowerCase().includes(q) ||
+      c.endpoint_path.toLowerCase().includes(q) ||
+      c.base_url.toLowerCase().includes(q) ||
+      (c.description && c.description.toLowerCase().includes(q))
+    );
+  });
+
+  const getMethodBadgeStyle = (method: string) => {
+    switch (method.toUpperCase()) {
+      case 'GET':
+        return { bg: 'rgba(16, 185, 129, 0.15)', text: '#10B981', border: 'rgba(16, 185, 129, 0.3)' };
+      case 'POST':
+        return { bg: 'rgba(59, 130, 246, 0.15)', text: '#3B82F6', border: 'rgba(59, 130, 246, 0.3)' };
+      case 'PUT':
+        return { bg: 'rgba(245, 158, 11, 0.15)', text: '#F59E0B', border: 'rgba(245, 158, 11, 0.3)' };
+      case 'DELETE':
+        return { bg: 'rgba(239, 68, 68, 0.15)', text: '#EF4444', border: 'rgba(239, 68, 68, 0.3)' };
+      default:
+        return { bg: 'rgba(139, 92, 246, 0.15)', text: '#8B5CF6', border: 'rgba(139, 92, 246, 0.3)' };
+    }
+  };
+
+  const getCategoryBadgeColor = (cat: string) => {
+    switch (cat.toUpperCase()) {
+      case 'IDENTITY':
+        return '#3B82F6';
+      case 'PAYMENT':
+        return '#10B981';
+      case 'ORDER':
+        return '#F59E0B';
+      case 'DEVICE':
+        return '#8B5CF6';
+      case 'DISPUTE':
+        return '#EF4444';
+      case 'ACTION':
+        return '#EC4899';
+      case 'NOTIFICATION':
+        return '#06B6D4';
+      default:
+        return 'var(--color-primary)';
+    }
+  };
+
   return (
     <div style={{ width: '100%', padding: '32px 36px' }} className="animate-fade-in">
       {/* Header */}
@@ -457,6 +773,20 @@ export const AdminManagementView: React.FC = () => {
             <Button variant="primary" size="sm" onClick={openNewParamModal} icon={<Plus size={15} />}>
               Add Parameter Threshold
             </Button>
+          ) : activeTab === 'connectors' ? (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handlePingAll}
+                icon={<Activity size={14} />}
+              >
+                Ping All Endpoints
+              </Button>
+              <Button variant="primary" size="sm" onClick={openNewConnectorModal} icon={<Plus size={15} />}>
+                Register New API
+              </Button>
+            </div>
           ) : (
             <Button
               variant="primary"
@@ -474,6 +804,7 @@ export const AdminManagementView: React.FC = () => {
             onClick={() => {
               if (activeTab === 'policies') loadPolicies();
               else if (activeTab === 'parameters') loadParameters();
+              else if (activeTab === 'connectors') loadConnectors();
               else loadKnowledgeStatus();
             }}
             icon={<RefreshCw size={14} />}
@@ -585,7 +916,7 @@ export const AdminManagementView: React.FC = () => {
           </div>
         </div>
 
-        {/* <div
+        <div
           style={{
             padding: '18px',
             borderRadius: 'var(--radius-md)',
@@ -595,28 +926,26 @@ export const AdminManagementView: React.FC = () => {
             alignItems: 'center',
             gap: '14px',
           }}
-        > */}
-          {/* <div
+        >
+          <div
             style={{
               width: '42px',
               height: '42px',
               borderRadius: '10px',
-              backgroundColor: 'rgba(139, 92, 246, 0.12)',
-              color: '#8B5CF6',
+              backgroundColor: 'rgba(6, 182, 212, 0.12)',
+              color: '#06B6D4',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <BookOpen size={20} />
+            <Server size={20} />
           </div>
           <div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>
-              {knowledgeStatus ? `${knowledgeStatus.indexed_vectors_count} Chunks` : 'ChromaDB'}
-            </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Vector Store (RAG)</div>
-          </div> */}
-        {/* </div> */}
+            <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{connectors.length} Connectors</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Microservice APIs Registered</div>
+          </div>
+        </div>
       </div>
 
       {feedback && (
@@ -715,6 +1044,27 @@ export const AdminManagementView: React.FC = () => {
         >
           <BookOpen size={17} color={activeTab === 'knowledge' ? 'var(--color-primary)' : 'inherit'} />
           Private Knowledge Base (RAG)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('connectors')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 20px',
+            border: 'none',
+            borderBottom: activeTab === 'connectors' ? '2px solid var(--color-primary)' : '2px solid transparent',
+            backgroundColor: 'transparent',
+            color: activeTab === 'connectors' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+            fontWeight: activeTab === 'connectors' ? 700 : 500,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            transition: 'all var(--transition-fast)',
+          }}
+        >
+          <Server size={17} color={activeTab === 'connectors' ? 'var(--color-primary)' : 'inherit'} />
+          Microservice APIs ({connectors.length})
         </button>
       </div>
 
@@ -1706,6 +2056,743 @@ export const AdminManagementView: React.FC = () => {
         </div>
       )}
 
+      {/* TAB 4: DYNAMIC MICROSERVICE APIS & CONNECTORS VIEW */}
+      {activeTab === 'connectors' && (
+        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Filter Bar */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '14px 18px',
+              gap: '16px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '280px' }}>
+              <div style={{ position: 'relative', width: '100%', maxWidth: '420px' }}>
+                <Search
+                  size={15}
+                  style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--color-text-secondary)',
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Search microservices by name, key, endpoint, or URL..."
+                  value={connectorSearch}
+                  onChange={(e) => setConnectorSearch(e.target.value)}
+                  style={{ width: '100%', paddingLeft: '36px', fontSize: '0.88rem' }}
+                />
+              </div>
+
+              <select
+                value={connectorCategoryFilter}
+                onChange={(e) => setConnectorCategoryFilter(e.target.value)}
+                style={{ minWidth: '170px', fontSize: '0.88rem' }}
+              >
+                <option value="ALL">All Categories</option>
+                <option value="IDENTITY">IDENTITY (KYC & Profile)</option>
+                <option value="PAYMENT">PAYMENT (Gateways & Velocity)</option>
+                <option value="ORDER">ORDER (Fulfillment & Merchant)</option>
+                <option value="DEVICE">DEVICE (Fingerprint & Sybil)</option>
+                <option value="DISPUTE">DISPUTE (Chargeback Ledger)</option>
+                <option value="ACTION">ACTION (Enforcement & Locks)</option>
+                <option value="NOTIFICATION">NOTIFICATION (Alerts & OTP)</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
+                Showing <strong>{filteredConnectors.length}</strong> of {connectors.length} Microservices
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handlePingAll}
+                icon={<Activity size={14} />}
+              >
+                Ping All
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={openNewConnectorModal}
+                icon={<Plus size={14} />}
+              >
+                Register API
+              </Button>
+            </div>
+          </div>
+
+          {loadingConnectors ? (
+            <GlobalLoader size="sm" />
+          ) : filteredConnectors.length === 0 ? (
+            <Card>
+              <div style={{ textAlign: 'center', padding: '48px 20px' }}>
+                <Server size={40} style={{ color: 'var(--color-text-secondary)', marginBottom: '12px' }} />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '6px' }}>
+                  No Microservice APIs Found
+                </h3>
+                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.88rem', marginBottom: '18px' }}>
+                  {connectorSearch ? 'No connectors match your search query.' : 'No microservice connectors are configured yet.'}
+                </p>
+                <Button variant="secondary" size="sm" onClick={openNewConnectorModal}>
+                  Register First Microservice
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {filteredConnectors.map((connector) => {
+                const methodStyle = getMethodBadgeStyle(connector.http_method);
+                const categoryColor = getCategoryBadgeColor(connector.service_category);
+                const currentInspectorTab = activeInspectorTabs[connector.id] || 'payload';
+                const isProbing = probingState[connector.id] || false;
+                const probeResult = probeResults[connector.id];
+
+                return (
+                  <Card key={connector.id} style={{ padding: '0', overflow: 'hidden' }}>
+                    {/* Card Header */}
+                    <div
+                      style={{
+                        padding: '18px 24px',
+                        borderBottom: '1px solid var(--color-border)',
+                        backgroundColor: 'var(--color-surface)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          {/* Method Badge */}
+                          <span
+                            style={{
+                              fontSize: '0.74rem',
+                              fontWeight: 800,
+                              fontFamily: 'var(--font-family-mono)',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: methodStyle.bg,
+                              color: methodStyle.text,
+                              border: `1px solid ${methodStyle.border}`,
+                            }}
+                          >
+                            {connector.http_method}
+                          </span>
+
+                          {/* Category Badge */}
+                          <span
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: 'var(--radius-full)',
+                              backgroundColor: `${categoryColor}1A`,
+                              color: categoryColor,
+                              border: `1px solid ${categoryColor}4D`,
+                            }}
+                          >
+                            {connector.service_category}
+                          </span>
+
+                          {/* Service Key Badge */}
+                          <span
+                            style={{
+                              fontSize: '0.74rem',
+                              fontFamily: 'var(--font-family-mono)',
+                              color: 'var(--color-text-secondary)',
+                              backgroundColor: 'var(--color-input-background)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              border: '1px solid var(--color-border)',
+                            }}
+                          >
+                            {connector.service_key}
+                          </span>
+                        </div>
+
+                        <h3 style={{ fontSize: '1.18rem', fontWeight: 800, margin: '2px 0 0 0' }}>
+                          {connector.service_name}
+                        </h3>
+
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem', margin: 0, maxWidth: '780px' }}>
+                          {connector.description || 'Enterprise microservice data connector.'}
+                        </p>
+                      </div>
+
+                      {/* Right Telemetry & Execution Mode Controls */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        {/* Health Status Pill */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '4px 10px',
+                            borderRadius: 'var(--radius-full)',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            backgroundColor:
+                              connector.health_status === 'HEALTHY'
+                                ? 'rgba(16, 185, 129, 0.12)'
+                                : connector.health_status === 'DEGRADED'
+                                ? 'rgba(245, 158, 11, 0.12)'
+                                : 'rgba(239, 68, 68, 0.12)',
+                            color:
+                              connector.health_status === 'HEALTHY'
+                                ? '#10B981'
+                                : connector.health_status === 'DEGRADED'
+                                ? '#F59E0B'
+                                : '#EF4444',
+                            border: `1px solid ${
+                              connector.health_status === 'HEALTHY'
+                                ? 'rgba(16, 185, 129, 0.3)'
+                                : connector.health_status === 'DEGRADED'
+                                ? 'rgba(245, 158, 11, 0.3)'
+                                : 'rgba(239, 68, 68, 0.3)'
+                            }`,
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: '7px',
+                              height: '7px',
+                              borderRadius: '50%',
+                              backgroundColor:
+                                connector.health_status === 'HEALTHY'
+                                  ? '#10B981'
+                                  : connector.health_status === 'DEGRADED'
+                                  ? '#F59E0B'
+                                  : '#EF4444',
+                            }}
+                          />
+                          {connector.health_status} {connector.last_latency_ms ? `• ${connector.last_latency_ms}ms` : ''}
+                        </div>
+
+                        {/* Mock Mode Toggle Badge */}
+                        <button
+                          onClick={() => handleToggleMock(connector)}
+                          title="Click to toggle between Mock Simulation and Live Network dispatch"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '4px 10px',
+                            borderRadius: 'var(--radius-full)',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            backgroundColor: connector.is_mock_enabled
+                              ? 'rgba(6, 182, 212, 0.14)'
+                              : 'rgba(16, 185, 129, 0.14)',
+                            color: connector.is_mock_enabled ? '#06B6D4' : '#10B981',
+                            border: `1px solid ${
+                              connector.is_mock_enabled ? 'rgba(6, 182, 212, 0.35)' : 'rgba(16, 185, 129, 0.35)'
+                            }`,
+                            transition: 'all var(--transition-fast)',
+                          }}
+                        >
+                          {connector.is_mock_enabled ? (
+                            <>
+                              <ToggleLeft size={14} />
+                              MOCK SIMULATOR
+                            </>
+                          ) : (
+                            <>
+                              <ToggleRight size={14} />
+                              LIVE NETWORK
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Monospace Endpoint & Connection Bar */}
+                    <div
+                      style={{
+                        padding: '12px 24px',
+                        backgroundColor: 'rgba(0, 0, 0, 0.15)',
+                        borderBottom: '1px solid var(--color-border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '300px' }}>
+                        <Globe size={15} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-family-mono)',
+                            fontSize: '0.84rem',
+                            color: 'var(--color-text-primary)',
+                            wordBreak: 'break-all',
+                          }}
+                        >
+                          <strong style={{ color: methodStyle.text }}>{connector.http_method}</strong>{' '}
+                          {connector.base_url.replace(/\/$/, '')}
+                          <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
+                            /{connector.endpoint_path.replace(/^\//, '')}
+                          </span>
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleCopyText(`url-${connector.id}`, `${connector.base_url.replace(/\/$/, '')}/${connector.endpoint_path.replace(/^\//, '')}`)}
+                          icon={copiedKey === `url-${connector.id}` ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
+                          style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                        >
+                          {copiedKey === `url-${connector.id}` ? 'Copied' : 'Copy URL'}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Auth & Config Metadata Ribbon */}
+                    <div
+                      style={{
+                        padding: '10px 24px',
+                        backgroundColor: 'var(--color-surface)',
+                        borderBottom: '1px solid var(--color-border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '16px',
+                        flexWrap: 'wrap',
+                        fontSize: '0.8rem',
+                        color: 'var(--color-text-secondary)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                        <span>
+                          <strong>Auth:</strong>{' '}
+                          <span style={{ color: 'var(--color-text-primary)' }}>{connector.auth_type}</span>
+                        </span>
+                        <span>
+                          <strong>Header:</strong>{' '}
+                          <span style={{ fontFamily: 'var(--font-family-mono)', color: 'var(--color-text-primary)' }}>
+                            {connector.auth_header_key || 'Authorization'}
+                          </span>
+                        </span>
+                        <span>
+                          <strong>Token:</strong>{' '}
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-family-mono)',
+                              backgroundColor: 'var(--color-input-background)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              color: 'var(--color-text-primary)',
+                            }}
+                          >
+                            {connector.token_preview || 'None'}
+                          </span>
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <span>
+                          <strong>Timeout:</strong> {connector.timeout_ms || 5000}ms
+                        </span>
+                        <span>
+                          <strong>Retries:</strong> {connector.retry_count ?? 2}
+                        </span>
+                        {connector.last_tested_at && (
+                          <span>
+                            <strong>Last Tested:</strong>{' '}
+                            {new Date(connector.last_tested_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Interactive Sub-Tabs Navigation */}
+                    <div
+                      style={{
+                        padding: '0 24px',
+                        borderBottom: '1px solid var(--color-border)',
+                        display: 'flex',
+                        gap: '8px',
+                        backgroundColor: 'var(--color-surface)',
+                      }}
+                    >
+                      <button
+                        onClick={() => setActiveInspectorTabs((prev) => ({ ...prev, [connector.id]: 'payload' }))}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '10px 14px',
+                          border: 'none',
+                          borderBottom: currentInspectorTab === 'payload' ? '2px solid var(--color-primary)' : '2px solid transparent',
+                          backgroundColor: 'transparent',
+                          color: currentInspectorTab === 'payload' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                          fontWeight: currentInspectorTab === 'payload' ? 700 : 500,
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <Code size={14} />
+                        Request Payload & Headers
+                      </button>
+
+                      <button
+                        onClick={() => setActiveInspectorTabs((prev) => ({ ...prev, [connector.id]: 'response' }))}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '10px 14px',
+                          border: 'none',
+                          borderBottom: currentInspectorTab === 'response' ? '2px solid var(--color-primary)' : '2px solid transparent',
+                          backgroundColor: 'transparent',
+                          color: currentInspectorTab === 'response' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                          fontWeight: currentInspectorTab === 'response' ? 700 : 500,
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <CheckCircle size={14} />
+                        Expected Output Response
+                      </button>
+
+                      <button
+                        onClick={() => setActiveInspectorTabs((prev) => ({ ...prev, [connector.id]: 'probe' }))}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '10px 14px',
+                          border: 'none',
+                          borderBottom: currentInspectorTab === 'probe' ? '2px solid #FF5A14' : '2px solid transparent',
+                          backgroundColor: 'transparent',
+                          color: currentInspectorTab === 'probe' ? '#FF5A14' : 'var(--color-text-secondary)',
+                          fontWeight: currentInspectorTab === 'probe' ? 700 : 500,
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <Zap size={14} color={currentInspectorTab === 'probe' ? '#FF5A14' : 'currentColor'} />
+                        Interactive Test Sandbox & Live Probe
+                      </button>
+                    </div>
+
+                    {/* Sub-Tab Content */}
+                    <div style={{ padding: '18px 24px', backgroundColor: 'var(--color-input-background)' }}>
+                      {/* Sub-Tab 1: Request Payload */}
+                      {currentInspectorTab === 'payload' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
+                              Sample Request Payload & Headers:
+                            </span>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleCopyText(`pay-${connector.id}`, JSON.stringify(connector.sample_payload || {}, null, 2))}
+                              icon={copiedKey === `pay-${connector.id}` ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
+                              style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+                            >
+                              {copiedKey === `pay-${connector.id}` ? 'Copied' : 'Copy JSON'}
+                            </Button>
+                          </div>
+
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                              gap: '12px',
+                            }}
+                          >
+                            <div>
+                              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                                Headers Sent:
+                              </div>
+                              <pre
+                                style={{
+                                  margin: 0,
+                                  padding: '12px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                                  color: '#38BDF8',
+                                  fontSize: '0.78rem',
+                                  fontFamily: 'var(--font-family-mono)',
+                                  border: '1px solid var(--color-border)',
+                                  maxHeight: '180px',
+                                  overflowY: 'auto',
+                                }}
+                              >
+                                {JSON.stringify(
+                                  {
+                                    [connector.auth_header_key || 'Authorization']:
+                                      connector.auth_type !== 'NONE' ? `Bearer ${connector.token_preview || '***'}` : undefined,
+                                    ...(connector.custom_headers || {}),
+                                  },
+                                  null,
+                                  2
+                                )}
+                              </pre>
+                            </div>
+
+                            <div>
+                              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                                Request Body / Query Params:
+                              </div>
+                              <pre
+                                style={{
+                                  margin: 0,
+                                  padding: '12px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                                  color: '#34D399',
+                                  fontSize: '0.78rem',
+                                  fontFamily: 'var(--font-family-mono)',
+                                  border: '1px solid var(--color-border)',
+                                  maxHeight: '180px',
+                                  overflowY: 'auto',
+                                }}
+                              >
+                                {JSON.stringify(connector.sample_payload || {}, null, 2)}
+                              </pre>
+                            </div>
+                          </div>
+
+                          {connector.payload_schema && (
+                            <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+                              <strong>Schema notes:</strong> {connector.payload_schema}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Sub-Tab 2: Expected Output Response */}
+                      {currentInspectorTab === 'response' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
+                              Formatted Expected Output Response Structure (JSON):
+                            </span>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleCopyText(`res-${connector.id}`, JSON.stringify(connector.sample_response || {}, null, 2))}
+                              icon={copiedKey === `res-${connector.id}` ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
+                              style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+                            >
+                              {copiedKey === `res-${connector.id}` ? 'Copied' : 'Copy Response'}
+                            </Button>
+                          </div>
+
+                          <pre
+                            style={{
+                              margin: 0,
+                              padding: '14px',
+                              borderRadius: 'var(--radius-sm)',
+                              backgroundColor: 'rgba(0, 0, 0, 0.35)',
+                              color: '#A78BFA',
+                              fontSize: '0.82rem',
+                              fontFamily: 'var(--font-family-mono)',
+                              border: '1px solid var(--color-border)',
+                              maxHeight: '260px',
+                              overflowY: 'auto',
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            {JSON.stringify(connector.sample_response || {}, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+
+                      {/* Sub-Tab 3: Live Sandbox & Probe Runner */}
+                      {currentInspectorTab === 'probe' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                            <div>
+                              <div style={{ fontSize: '0.86rem', fontWeight: 700 }}>
+                                Interactive Microservice Sandbox
+                              </div>
+                              <div style={{ fontSize: '0.76rem', color: 'var(--color-text-secondary)' }}>
+                                Run an on-demand probe to measure round-trip latency, verify payloads, and inspect downstream responses.
+                              </div>
+                            </div>
+
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleRunProbe(connector)}
+                              disabled={isProbing}
+                              icon={isProbing ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
+                              style={{ backgroundColor: '#FF5A14' }}
+                            >
+                              {isProbing ? 'Probing...' : '⚡ Send Live Probe'}
+                            </Button>
+                          </div>
+
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                              gap: '12px',
+                            }}
+                          >
+                            {/* Probe Inputs */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                                Probe Request JSON (Custom Parameters):
+                              </label>
+                              <textarea
+                                rows={6}
+                                value={probeInputs[connector.id] ?? JSON.stringify(connector.sample_payload || {}, null, 2)}
+                                onChange={(e) => setProbeInputs((prev) => ({ ...prev, [connector.id]: e.target.value }))}
+                                style={{
+                                  width: '100%',
+                                  fontFamily: 'var(--font-family-mono)',
+                                  fontSize: '0.8rem',
+                                  padding: '10px',
+                                  backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                                }}
+                              />
+                            </div>
+
+                            {/* Probe Output / Result */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                                  Probe Result & Telemetry:
+                                </label>
+                                {probeResult && (
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    <span
+                                      style={{
+                                        fontSize: '0.7rem',
+                                        fontWeight: 800,
+                                        padding: '1px 6px',
+                                        borderRadius: '4px',
+                                        backgroundColor: probeResult.success ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                        color: probeResult.success ? '#10B981' : '#EF4444',
+                                      }}
+                                    >
+                                      HTTP {probeResult.status_code}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: '0.7rem',
+                                        fontWeight: 800,
+                                        padding: '1px 6px',
+                                        borderRadius: '4px',
+                                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                                        color: '#3B82F6',
+                                      }}
+                                    >
+                                      {probeResult.latency_ms}ms
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: '0.7rem',
+                                        fontWeight: 700,
+                                        padding: '1px 6px',
+                                        borderRadius: '4px',
+                                        backgroundColor: 'var(--color-surface)',
+                                        color: 'var(--color-text-secondary)',
+                                      }}
+                                    >
+                                      {probeResult.execution_mode}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <pre
+                                style={{
+                                  margin: 0,
+                                  padding: '10px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                                  color: probeResult?.success ? '#34D399' : '#F87171',
+                                  fontSize: '0.78rem',
+                                  fontFamily: 'var(--font-family-mono)',
+                                  border: '1px solid var(--color-border)',
+                                  height: '135px',
+                                  overflowY: 'auto',
+                                }}
+                              >
+                                {probeResult
+                                  ? JSON.stringify(probeResult.response_body || { error: probeResult.error }, null, 2)
+                                  : '// Click "Send Live Probe" to execute request and observe response...'}
+                              </pre>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bottom Action Footer Toolbar */}
+                    <div
+                      style={{
+                        padding: '12px 24px',
+                        backgroundColor: 'var(--color-surface)',
+                        borderTop: '1px solid var(--color-border)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => openEditConnectorModal(connector)}
+                          icon={<Edit2 size={13} />}
+                        >
+                          Edit Configuration
+                        </Button>
+
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleToggleMock(connector)}
+                          icon={<RefreshCw size={13} />}
+                        >
+                          Switch to {connector.is_mock_enabled ? 'Live Network' : 'Mock Simulator'}
+                        </Button>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleDeleteConnector(connector)}
+                          icon={<Trash2 size={13} />}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* POLICY MODAL (CREATE / EDIT) */}
       <Modal
         isOpen={isPolicyModalOpen}
@@ -1980,6 +3067,279 @@ export const AdminManagementView: React.FC = () => {
             placeholder="Explain why this threshold is set and how the agent uses it to detect fraud vs legitimate transactions..."
             style={{ width: '100%' }}
           />
+        </div>
+      </Modal>
+
+      {/* DYNAMIC MICROSERVICE CONNECTOR MODAL (CREATE / EDIT) */}
+      <Modal
+        isOpen={isConnectorModalOpen}
+        onClose={() => setIsConnectorModalOpen(false)}
+        title={editingConnector ? `Edit Microservice Connector: ${editingConnector.service_name}` : 'Register New Microservice API Connector'}
+        subtitle="Decouple and dynamically configure inter-service REST endpoints, auth tokens, payloads, and mock simulation"
+        maxWidth="820px"
+        onSubmit={handleSaveConnector}
+        footer={
+          <>
+            <Button variant="secondary" type="button" onClick={() => setIsConnectorModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit">
+              {editingConnector ? 'Save Configuration' : 'Register Connector'}
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Row 1: Name and Key */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                Service Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Customer 360 & KYC Service"
+                value={connectorForm.service_name}
+                onChange={(e) => setConnectorForm({ ...connectorForm, service_name: e.target.value })}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                Service Key (Unique Identifier) *
+              </label>
+              <input
+                type="text"
+                required
+                disabled={!!editingConnector}
+                placeholder="e.g. USER_PROFILE_SERVICE"
+                value={connectorForm.service_key}
+                onChange={(e) => setConnectorForm({ ...connectorForm, service_key: e.target.value.toUpperCase() })}
+                style={{ width: '100%', fontFamily: 'var(--font-family-mono)' }}
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Category and Method */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                Service Category *
+              </label>
+              <select
+                value={connectorForm.service_category}
+                onChange={(e) => setConnectorForm({ ...connectorForm, service_category: e.target.value })}
+                style={{ width: '100%' }}
+              >
+                <option value="IDENTITY">IDENTITY (Customer KYC & 360)</option>
+                <option value="PAYMENT">PAYMENT (Gateways & Velocity)</option>
+                <option value="ORDER">ORDER (Fulfillment & Delivery)</option>
+                <option value="DEVICE">DEVICE (Fingerprint & Intelligence)</option>
+                <option value="DISPUTE">DISPUTE (Chargebacks & Claims)</option>
+                <option value="ACTION">ACTION (Enforcement & Controls)</option>
+                <option value="NOTIFICATION">NOTIFICATION (Alerts & OTP)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                HTTP Method *
+              </label>
+              <select
+                value={connectorForm.http_method}
+                onChange={(e) => setConnectorForm({ ...connectorForm, http_method: e.target.value as any })}
+                style={{ width: '100%', fontFamily: 'var(--font-family-mono)' }}
+              >
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="DELETE">DELETE</option>
+                <option value="PATCH">PATCH</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Row 3: Base URL and Endpoint Path */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                Base URL *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="https://api.internal.bank.com/user-service"
+                value={connectorForm.base_url}
+                onChange={(e) => setConnectorForm({ ...connectorForm, base_url: e.target.value })}
+                style={{ width: '100%', fontFamily: 'var(--font-family-mono)' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                Endpoint Path *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="/api/v1/users/{user_id}"
+                value={connectorForm.endpoint_path}
+                onChange={(e) => setConnectorForm({ ...connectorForm, endpoint_path: e.target.value })}
+                style={{ width: '100%', fontFamily: 'var(--font-family-mono)' }}
+              />
+            </div>
+          </div>
+
+          {/* Row 4: Auth Type and Header Key */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                Authentication Type
+              </label>
+              <select
+                value={connectorForm.auth_type}
+                onChange={(e) => setConnectorForm({ ...connectorForm, auth_type: e.target.value as any })}
+                style={{ width: '100%' }}
+              >
+                <option value="BEARER_TOKEN">Bearer Token</option>
+                <option value="API_KEY">API Key</option>
+                <option value="BASIC_AUTH">Basic Auth</option>
+                <option value="CUSTOM_HEADER">Custom Header</option>
+                <option value="NONE">None / Public Internal</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                Auth Header Key
+              </label>
+              <input
+                type="text"
+                placeholder="Authorization or X-API-KEY"
+                value={connectorForm.auth_header_key}
+                onChange={(e) => setConnectorForm({ ...connectorForm, auth_header_key: e.target.value })}
+                style={{ width: '100%', fontFamily: 'var(--font-family-mono)' }}
+              />
+            </div>
+          </div>
+
+          {/* Row 5: Secret Auth Token */}
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px' }}>
+              Secret Auth Token / Key (or ENV Reference)
+            </label>
+            <input
+              type="password"
+              placeholder={editingConnector?.token_preview ? `Current: ${editingConnector.token_preview} (leave blank to keep)` : 'Enter secret or ENV:SECRET_NAME'}
+              value={connectorForm.auth_token}
+              onChange={(e) => setConnectorForm({ ...connectorForm, auth_token: e.target.value })}
+              style={{ width: '100%', fontFamily: 'var(--font-family-mono)' }}
+            />
+            <span style={{ fontSize: '0.74rem', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
+              Supports plain secrets or <code>ENV:VARIABLE_NAME</code> to dynamically pull credentials from server environment memory.
+            </span>
+          </div>
+
+          {/* Row 6: Timeouts and Mock Mode */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', alignItems: 'center' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                Timeout (ms)
+              </label>
+              <input
+                type="number"
+                min={500}
+                max={30000}
+                step={500}
+                value={connectorForm.timeout_ms}
+                onChange={(e) => setConnectorForm({ ...connectorForm, timeout_ms: Number(e.target.value) })}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                Retry Attempts
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={5}
+                value={connectorForm.retry_count}
+                onChange={(e) => setConnectorForm({ ...connectorForm, retry_count: Number(e.target.value) })}
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', marginTop: '18px', gap: '8px' }}>
+              <input
+                type="checkbox"
+                id="mock_enabled_toggle"
+                checked={connectorForm.is_mock_enabled}
+                onChange={(e) => setConnectorForm({ ...connectorForm, is_mock_enabled: e.target.checked })}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <label htmlFor="mock_enabled_toggle" style={{ fontSize: '0.84rem', fontWeight: 600, cursor: 'pointer' }}>
+                Enable Mock Simulator
+              </label>
+            </div>
+          </div>
+
+          {/* Row 7: Custom Headers JSON */}
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+              Custom Headers (Formatted JSON)
+            </label>
+            <textarea
+              rows={3}
+              value={connectorForm.custom_headers}
+              onChange={(e) => setConnectorForm({ ...connectorForm, custom_headers: e.target.value })}
+              style={{ width: '100%', fontFamily: 'var(--font-family-mono)', fontSize: '0.8rem' }}
+            />
+          </div>
+
+          {/* Row 8: Sample Payload & Sample Response */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                Sample Request Payload (JSON)
+              </label>
+              <textarea
+                rows={6}
+                value={connectorForm.sample_payload}
+                onChange={(e) => setConnectorForm({ ...connectorForm, sample_payload: e.target.value })}
+                style={{ width: '100%', fontFamily: 'var(--font-family-mono)', fontSize: '0.8rem' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                Expected Output Response (JSON)
+              </label>
+              <textarea
+                rows={6}
+                value={connectorForm.sample_response}
+                onChange={(e) => setConnectorForm({ ...connectorForm, sample_response: e.target.value })}
+                style={{ width: '100%', fontFamily: 'var(--font-family-mono)', fontSize: '0.8rem' }}
+              />
+            </div>
+          </div>
+
+          {/* Row 9: Description */}
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+              Service Purpose & Forensic Scope
+            </label>
+            <textarea
+              rows={2}
+              value={connectorForm.description}
+              onChange={(e) => setConnectorForm({ ...connectorForm, description: e.target.value })}
+              placeholder="Describe what data this microservice supplies to Agent 34 or what enforcement action it triggers..."
+              style={{ width: '100%' }}
+            />
+          </div>
         </div>
       </Modal>
     </div>
