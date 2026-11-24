@@ -677,6 +677,30 @@ export const AdminManagementView: React.FC = () => {
     }
   };
 
+  const handleToggleActive = async (connector: MicroserviceConnector, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const targetState = !connector.is_active;
+
+    // Optimistic UI update
+    setConnectors((prev) =>
+      prev.map((c) => (c.id === connector.id ? { ...c, is_active: targetState } : c))
+    );
+
+    try {
+      const res = await apiClient.toggleActiveConnector(connector.id, targetState);
+      setFeedback({
+        type: 'success',
+        message: `Microservice "${connector.service_name}" is now ${res.is_active ? 'ACTIVE (Pipeline will collect data)' : 'DISABLED (Pipeline will skip this)'}`,
+      });
+    } catch (err: any) {
+      // Revert on failure
+      setConnectors((prev) =>
+        prev.map((c) => (c.id === connector.id ? { ...c, is_active: !targetState } : c))
+      );
+      setFeedback({ type: 'error', message: err.message || 'Failed to toggle connector active state' });
+    }
+  };
+
   const handleCopyText = (key: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
@@ -2403,6 +2427,64 @@ export const AdminManagementView: React.FC = () => {
                           </span>
                         )}
 
+                        {/* Pipeline Active / Inactive Toggle Switch */}
+                        <div
+                          onClick={(e) => handleToggleActive(connector, e)}
+                          title={`Click to ${connector.is_active ? 'deactivate' : 'activate'} ${connector.service_name} in ingestion & evidence pipeline`}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '7px',
+                            padding: '3px 8px 3px 6px',
+                            borderRadius: '16px',
+                            backgroundColor: connector.is_active ? 'rgba(16, 185, 129, 0.12)' : 'rgba(148, 163, 184, 0.12)',
+                            border: `1px solid ${connector.is_active ? 'rgba(16, 185, 129, 0.35)' : 'rgba(148, 163, 184, 0.25)'}`,
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          {/* Slider Track and Knob */}
+                          <div
+                            style={{
+                              width: '32px',
+                              height: '18px',
+                              borderRadius: '9px',
+                              backgroundColor: connector.is_active ? '#10B981' : '#475569',
+                              position: 'relative',
+                              transition: 'background-color 0.2s ease',
+                              boxShadow: connector.is_active ? '0 0 8px rgba(16, 185, 129, 0.4)' : 'none',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: '14px',
+                                height: '14px',
+                                borderRadius: '50%',
+                                backgroundColor: '#FFFFFF',
+                                position: 'absolute',
+                                top: '2px',
+                                left: connector.is_active ? '16px' : '2px',
+                                transition: 'left 0.2s ease',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                              }}
+                            />
+                          </div>
+
+                          {/* Status Label */}
+                          <span
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-family-mono)',
+                              letterSpacing: '0.04em',
+                              color: connector.is_active ? '#10B981' : '#94A3B8',
+                            }}
+                          >
+                            {connector.is_active ? 'ACTIVE' : 'DISABLED'}
+                          </span>
+                        </div>
+
                         {/* Inline Send Button (Postman Orange) */}
                         <button
                           type="button"
@@ -2445,6 +2527,30 @@ export const AdminManagementView: React.FC = () => {
                     {/* EXPANDED POSTMAN WORKSPACE */}
                     {isExpanded && (
                       <div style={{ backgroundColor: 'var(--color-surface)', padding: '16px 20px' }}>
+                        {/* Pipeline Status Banner */}
+                        {!connector.is_active && (
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              padding: '10px 14px',
+                              marginBottom: '14px',
+                              borderRadius: '6px',
+                              backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              fontSize: '0.82rem',
+                              color: '#F87171',
+                            }}
+                          >
+                            <span style={{ fontSize: '1.1rem' }}>⚠️</span>
+                            <div>
+                              <strong style={{ color: '#FCA5A5' }}>Pipeline Bypass Notice:</strong> This microservice is currently{' '}
+                              <strong style={{ textDecoration: 'underline' }}>DISABLED (OFF)</strong>. During CSV / document batch ingestion and Agent forensic investigations, detail gathering from this endpoint will be <strong>skipped</strong>.
+                            </div>
+                          </div>
+                        )}
+
                         {/* 1. POSTMAN OMNIBAR */}
                         <div
                           style={{

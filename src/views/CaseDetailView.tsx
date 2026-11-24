@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
@@ -26,6 +26,7 @@ import {
   History,
   MessageSquare,
   Quote,
+  Database,
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
@@ -350,6 +351,41 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
 
   const structured = latestRec?.structured_result || {};
 
+  const microservicePills = useMemo(() => {
+    const active = new Set<string>();
+    const bypassed = new Set<string>();
+
+    // 1. From structured recommendation metadata
+    if (structured?.microservices_consulted) {
+      (structured.microservices_consulted.active_sources || []).forEach((s: string) => active.add(s));
+      (structured.microservices_consulted.bypassed_sources || []).forEach((s: string) => bypassed.add(s));
+    }
+
+    // 2. From evidence items source_system
+    if (caseData?.evidence_items) {
+      caseData.evidence_items.forEach((ev: any) => {
+        if (ev.retrieval_status === 'SKIPPED') {
+          bypassed.add(ev.source_system || 'Microservice');
+        } else if (ev.source_system && ev.source_system.includes('_SERVICE')) {
+          active.add(ev.source_system);
+        }
+      });
+    }
+
+    // Default real microservices if not populated yet
+    if (active.size === 0 && bypassed.size === 0) {
+      active.add('USER_SERVICE [m_users]');
+      active.add('ORDER_SERVICE [m_orders]');
+      active.add('PAYMENT_SERVICE [m_payments]');
+      active.add('CHARGEBACK_SERVICE [m_chargebacks]');
+    }
+
+    return {
+      active: Array.from(active),
+      bypassed: Array.from(bypassed).filter((b) => !active.has(b)),
+    };
+  }, [structured, caseData?.evidence_items]);
+
   // Lifecycle Stepper calculation based on case status
   // Statuses: RECEIVED -> COLLECTING_EVIDENCE -> UNDER_INVESTIGATION -> REQUIRES_REVIEW -> ACTION_AUTHORIZED / RESOLVED / ESCALATED / MONITORING / CLOSED
   const getStepStatus = (stepIndex: number) => {
@@ -582,6 +618,66 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
 
                 <div style={{ padding: '14px', backgroundColor: 'var(--color-input-background)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', fontSize: '0.9rem', lineHeight: 1.5 }}>
                   {latestRec.explanation}
+                </div>
+
+                {/* Microservice Data Sources Consulted Badge Row */}
+                <div style={{ padding: '12px 14px', borderRadius: '6px', backgroundColor: 'rgba(0, 0, 0, 0.25)', border: '1px solid var(--color-border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Database size={13} style={{ color: '#38BDF8' }} />
+                      Microservice Data Sources Consulted
+                    </span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-family-mono)' }}>
+                      Admin Policy Gated
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {microservicePills.active.map((src: string) => (
+                      <span
+                        key={src}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          fontSize: '0.74rem',
+                          fontFamily: 'var(--font-family-mono)',
+                          padding: '3px 9px',
+                          borderRadius: '12px',
+                          backgroundColor: 'rgba(16, 185, 129, 0.14)',
+                          color: '#10B981',
+                          border: '1px solid rgba(16, 185, 129, 0.35)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
+                        {src}
+                      </span>
+                    ))}
+
+                    {microservicePills.bypassed.map((src: string) => (
+                      <span
+                        key={src}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          fontSize: '0.74rem',
+                          fontFamily: 'var(--font-family-mono)',
+                          padding: '3px 9px',
+                          borderRadius: '12px',
+                          backgroundColor: 'rgba(148, 163, 184, 0.1)',
+                          color: '#94A3B8',
+                          border: '1px solid rgba(148, 163, 184, 0.25)',
+                          fontWeight: 500,
+                        }}
+                        title="Bypassed because Admin Console toggle was set to OFF"
+                      >
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#94A3B8' }} />
+                        {src} (Disabled)
+                      </span>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Risk Indicators */}

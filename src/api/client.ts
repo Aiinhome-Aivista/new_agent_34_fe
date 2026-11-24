@@ -841,6 +841,19 @@ export const apiClient = {
     return res.json();
   },
 
+  async toggleActiveConnector(id: string, isActive?: boolean): Promise<{ id: string; service_key: string; is_active: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/admin/connectors/${id}/toggle-active`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(isActive !== undefined ? { is_active: isActive } : {}),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to toggle active state');
+    }
+    return res.json();
+  },
+
   async testConnector(id: string, customPayload?: any, testParams?: Record<string, string>): Promise<ConnectorTestResult> {
     const res = await fetch(`${API_BASE}/admin/connectors/${id}/test`, {
       method: 'POST',
