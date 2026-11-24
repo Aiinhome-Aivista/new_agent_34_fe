@@ -2510,7 +2510,7 @@ export const AdminManagementView: React.FC = () => {
                           </Button>
 
                           {/* Big Send Button */}
-                          <button
+                          {/* <button
                             type="button"
                             onClick={() => handleRunProbe(connector)}
                             disabled={isProbing}
@@ -2539,7 +2539,7 @@ export const AdminManagementView: React.FC = () => {
                           >
                             <Send size={14} className={isProbing ? 'animate-spin' : ''} />
                             {isProbing ? 'Sending...' : 'Send'}
-                          </button>
+                          </button> */}
                         </div>
 
                         {/* 2. POSTMAN REQUEST TABS */}
