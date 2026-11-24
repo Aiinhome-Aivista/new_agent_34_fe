@@ -151,7 +151,7 @@ export interface MicroserviceConnector {
 
 export interface ConnectorTestResult {
   success: boolean;
-  execution_mode: 'MOCK_SIMULATION' | 'LIVE_NETWORK';
+  execution_mode: 'MOCK_SIMULATION' | 'LIVE_NETWORK' | 'LIVE_DATABASE_SERVICE';
   target_url: string;
   http_method: string;
   status_code: number;

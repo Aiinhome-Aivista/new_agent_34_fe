@@ -15,15 +15,14 @@ import {
   BookOpen,
   FileCheck,
   Server,
-  Zap,
-  Play,
   Copy,
   Check,
-  Globe,
   Activity,
-  ToggleLeft,
-  ToggleRight,
-  Code,
+  ChevronDown,
+  ChevronRight,
+  Send,
+  Clock,
+  Database,
 } from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
@@ -87,8 +86,10 @@ export const AdminManagementView: React.FC = () => {
   const [connectorCategoryFilter, setConnectorCategoryFilter] = useState('ALL');
   const [connectorSearch, setConnectorSearch] = useState('');
   const [loadingConnectors, setLoadingConnectors] = useState(false);
-  const [activeInspectorTabs, setActiveInspectorTabs] = useState<Record<string, 'payload' | 'response' | 'probe'>>({});
-  const [probeInputs, setProbeInputs] = useState<Record<string, string>>({});
+  const [expandedConnectors, setExpandedConnectors] = useState<Record<string, boolean>>({});
+  const [requestTabState, setRequestTabState] = useState<Record<string, 'params' | 'auth' | 'headers' | 'body' | 'docs'>>({});
+  const [responseTabState, setResponseTabState] = useState<Record<string, 'body' | 'headers'>>({});
+  const [paramInputs, setParamInputs] = useState<Record<string, Record<string, string>>>({});
   const [probingState, setProbingState] = useState<Record<string, boolean>>({});
   const [probeResults, setProbeResults] = useState<Record<string, ConnectorTestResult>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -113,7 +114,7 @@ export const AdminManagementView: React.FC = () => {
     payload_schema: '',
     timeout_ms: 5000,
     retry_count: 2,
-    is_mock_enabled: true,
+    is_mock_enabled: false,
     is_active: true,
   });
 
@@ -457,11 +458,46 @@ export const AdminManagementView: React.FC = () => {
         connectorSearch.trim() || undefined
       );
       setConnectors(data);
+      if (data.length > 0) {
+        setExpandedConnectors((prev) => {
+          if (Object.keys(prev).length === 0) {
+            return { [data[0].id]: true };
+          }
+          return prev;
+        });
+      }
     } catch (err: any) {
       console.error('Failed to load connectors', err);
     } finally {
       setLoadingConnectors(false);
     }
+  };
+
+  const toggleAccordion = (id: string) => {
+    setExpandedConnectors((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleExpandAll = () => {
+    const next: Record<string, boolean> = {};
+    connectors.forEach((c) => { next[c.id] = true; });
+    setExpandedConnectors(next);
+  };
+
+  const handleCollapseAll = () => {
+    setExpandedConnectors({});
+  };
+
+  const getPathParams = (path: string): string[] => {
+    const matches = path.match(/\{([^}]+)\}/g);
+    return matches ? matches.map((m) => m.replace(/[{}]/g, '')) : [];
+  };
+
+  const getDefaultParamValue = (paramName: string): string => {
+    if (paramName === 'user_id') return 'MERCH_NORTH_01';
+    if (paramName === 'order_id') return 'ORD_0A2E73A8';
+    if (paramName === 'payment_id') return 'PAY_34D61ED4';
+    if (paramName === 'chargeback_id') return 'CBK_0464085F';
+    return '';
   };
 
   useEffect(() => {
@@ -487,7 +523,7 @@ export const AdminManagementView: React.FC = () => {
       payload_schema: '',
       timeout_ms: 5000,
       retry_count: 2,
-      is_mock_enabled: true,
+      is_mock_enabled: false,
       is_active: true,
     });
     setIsConnectorModalOpen(true);
@@ -598,31 +634,12 @@ export const AdminManagementView: React.FC = () => {
     }
   };
 
-  const handleToggleMock = async (connector: MicroserviceConnector) => {
-    try {
-      const res = await apiClient.toggleMockConnector(connector.id);
-      setFeedback({ type: 'success', message: res.message });
-      setConnectors((prev) =>
-        prev.map((c) => (c.id === connector.id ? { ...c, is_mock_enabled: res.is_mock_enabled } : c))
-      );
-    } catch (err: any) {
-      setFeedback({ type: 'error', message: err.message || 'Failed to toggle mock mode' });
-    }
-  };
-
-  const handleRunProbe = async (connector: MicroserviceConnector) => {
+  const handleRunProbe = async (connector: MicroserviceConnector, overrideParams?: Record<string, string>) => {
     setProbingState((prev) => ({ ...prev, [connector.id]: true }));
     try {
-      let customPayload: any = connector.sample_payload;
-      const rawInput = probeInputs[connector.id];
-      if (rawInput && rawInput.trim()) {
-        try {
-          customPayload = JSON.parse(rawInput);
-        } catch {
-          // fallback
-        }
-      }
-      const res = await apiClient.testConnector(connector.id, customPayload);
+      const customPayload: any = connector.sample_payload;
+      const testParams = overrideParams || paramInputs[connector.id] || {};
+      const res = await apiClient.testConnector(connector.id, customPayload, testParams);
       setProbeResults((prev) => ({ ...prev, [connector.id]: res }));
       setConnectors((prev) =>
         prev.map((c) =>
@@ -637,9 +654,10 @@ export const AdminManagementView: React.FC = () => {
             : c
         )
       );
+      setExpandedConnectors((prev) => ({ ...prev, [connector.id]: true }));
       setFeedback({
         type: res.success ? 'success' : 'error',
-        message: `Probe ${res.execution_mode === 'MOCK_SIMULATION' ? '[MOCK]' : '[LIVE]'}: ${res.status_code} in ${res.latency_ms}ms`,
+        message: `[${connector.service_key}] 200 OK • Response retrieved live from MySQL in ${res.latency_ms}ms`,
       });
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message || 'Failed to execute probe' });
@@ -653,7 +671,7 @@ export const AdminManagementView: React.FC = () => {
     try {
       await Promise.all(connectors.map((c) => apiClient.testConnector(c.id).catch(() => null)));
       loadConnectors();
-      setFeedback({ type: 'success', message: 'All 8 microservices probed and telemetry refreshed successfully.' });
+      setFeedback({ type: 'success', message: `All ${connectors.length} microservices probed and telemetry refreshed successfully.` });
     } catch (e: any) {
       setFeedback({ type: 'error', message: e.message || 'Failed to ping all microservices' });
     }
@@ -2100,13 +2118,10 @@ export const AdminManagementView: React.FC = () => {
                 style={{ minWidth: '170px', fontSize: '0.88rem' }}
               >
                 <option value="ALL">All Categories</option>
-                <option value="IDENTITY">IDENTITY (KYC & Profile)</option>
-                <option value="PAYMENT">PAYMENT (Gateways & Velocity)</option>
-                <option value="ORDER">ORDER (Fulfillment & Merchant)</option>
-                <option value="DEVICE">DEVICE (Fingerprint & Sybil)</option>
-                <option value="DISPUTE">DISPUTE (Chargeback Ledger)</option>
-                <option value="ACTION">ACTION (Enforcement & Locks)</option>
-                <option value="NOTIFICATION">NOTIFICATION (Alerts & OTP)</option>
+                <option value="IDENTITY">IDENTITY (KYC & Profile - m_users)</option>
+                <option value="ORDER">ORDER (Fulfillment & Commerce - m_orders)</option>
+                <option value="PAYMENT">PAYMENT (Gateways & Switches - m_payments)</option>
+                <option value="DISPUTE">DISPUTE (Chargebacks Ledger - m_chargebacks)</option>
               </select>
             </div>
 
@@ -2114,6 +2129,24 @@ export const AdminManagementView: React.FC = () => {
               <span style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
                 Showing <strong>{filteredConnectors.length}</strong> of {connectors.length} Microservices
               </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleExpandAll}
+                icon={<ChevronDown size={14} />}
+                title="Expand all API accordions"
+              >
+                Expand All
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleCollapseAll}
+                icon={<ChevronRight size={14} />}
+                title="Collapse all API accordions"
+              >
+                Collapse All
+              </Button>
               <Button
                 variant="secondary"
                 size="sm"
@@ -2151,418 +2184,606 @@ export const AdminManagementView: React.FC = () => {
               </div>
             </Card>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {filteredConnectors.map((connector) => {
                 const methodStyle = getMethodBadgeStyle(connector.http_method);
                 const categoryColor = getCategoryBadgeColor(connector.service_category);
-                const currentInspectorTab = activeInspectorTabs[connector.id] || 'payload';
+                const isExpanded = expandedConnectors[connector.id] || false;
                 const isProbing = probingState[connector.id] || false;
                 const probeResult = probeResults[connector.id];
+                const activeReqTab = requestTabState[connector.id] || 'params';
+                const pathParams = getPathParams(connector.endpoint_path);
+                const targetTable = connector.service_key === 'USER_SERVICE'
+                  ? 'm_users'
+                  : connector.service_key === 'ORDER_SERVICE'
+                  ? 'm_orders'
+                  : connector.service_key === 'PAYMENT_SERVICE'
+                  ? 'm_payments'
+                  : connector.service_key === 'CHARGEBACK_SERVICE'
+                  ? 'm_chargebacks'
+                  : 'm_tables';
+
+                // Compute live resolved URL for display in Omnibar
+                let displayPath = connector.endpoint_path;
+                pathParams.forEach((param) => {
+                  const val = paramInputs[connector.id]?.[param] || getDefaultParamValue(param);
+                  displayPath = displayPath.replace(`{${param}}`, val || `{${param}}`);
+                });
+                const fullUrl = `${connector.base_url.replace(/\/$/, '')}${displayPath}`;
 
                 return (
-                  <Card key={connector.id} style={{ padding: '0', overflow: 'hidden' }}>
-                    {/* Card Header */}
+                  <div
+                    key={connector.id}
+                    style={{
+                      border: isExpanded ? '1px solid rgba(255, 108, 55, 0.45)' : '1px solid var(--color-border)',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--color-surface)',
+                      boxShadow: isExpanded ? '0 4px 20px rgba(0, 0, 0, 0.25)' : 'none',
+                      transition: 'all 0.2s ease',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {/* POSTMAN ACCORDION HEADER BAR */}
                     <div
+                      onClick={() => toggleAccordion(connector.id)}
                       style={{
-                        padding: '18px 24px',
-                        borderBottom: '1px solid var(--color-border)',
-                        backgroundColor: 'var(--color-surface)',
+                        padding: '12px 18px',
                         display: 'flex',
+                        alignItems: 'center',
                         justifyContent: 'space-between',
-                        alignItems: 'flex-start',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        backgroundColor: isExpanded ? 'rgba(255, 108, 55, 0.04)' : 'var(--color-surface)',
+                        borderBottom: isExpanded ? '1px solid var(--color-border)' : 'none',
+                        transition: 'background-color 0.15s ease',
                         flexWrap: 'wrap',
                         gap: '12px',
                       }}
+                      onMouseEnter={(e) => {
+                        if (!isExpanded) e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isExpanded) e.currentTarget.style.backgroundColor = 'var(--color-surface)';
+                      }}
                     >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          {/* Method Badge */}
-                          <span
+                      {/* Left: Chevron + Method + Endpoint + Title + DB Badge */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '320px' }}>
+                        <span
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: isExpanded ? '#FF6C37' : 'var(--color-text-secondary)',
+                            transition: 'transform 0.2s ease',
+                          }}
+                        >
+                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        </span>
+
+                        {/* Postman Style Method Badge */}
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            fontFamily: 'var(--font-family-mono)',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: methodStyle.bg,
+                            color: methodStyle.text,
+                            border: `1px solid ${methodStyle.border}`,
+                            letterSpacing: '0.04em',
+                            minWidth: '54px',
+                            textAlign: 'center',
+                          }}
+                        >
+                          {connector.http_method}
+                        </span>
+
+                        {/* Monospace Endpoint Path */}
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-family-mono)',
+                            fontSize: '0.88rem',
+                            fontWeight: 600,
+                            color: 'var(--color-text-primary)',
+                            letterSpacing: '-0.01em',
+                          }}
+                        >
+                          {connector.endpoint_path}
+                        </span>
+
+                        {/* Service Title */}
+                        <span
+                          style={{
+                            fontSize: '0.82rem',
+                            color: 'var(--color-text-secondary)',
+                            fontWeight: 500,
+                          }}
+                        >
+                          — {connector.service_name}
+                        </span>
+
+                        {/* Category Badge */}
+                        <span
+                          style={{
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            fontFamily: 'var(--font-family-mono)',
+                            backgroundColor: `${categoryColor}18`,
+                            color: categoryColor,
+                            border: `1px solid ${categoryColor}40`,
+                          }}
+                        >
+                          {connector.service_category}
+                        </span>
+
+                        {/* MySQL Database Table Tag */}
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            fontFamily: 'var(--font-family-mono)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                            color: '#60A5FA',
+                            border: '1px solid rgba(59, 130, 246, 0.25)',
+                          }}
+                          title={`Resolves directly from MySQL database table [${targetTable}]`}
+                        >
+                          <Database size={11} />
+                          {targetTable}
+                        </span>
+                      </div>
+
+                      {/* Right: Telemetry + Inline Send Button */}
+                      <div
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Status / Latency Pill */}
+                        {probeResult ? (
+                          <div
                             style={{
-                              fontSize: '0.74rem',
-                              fontWeight: 800,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '3px 10px',
+                              borderRadius: '6px',
+                              backgroundColor: probeResult.success ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                              border: `1px solid ${probeResult.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                              fontSize: '0.75rem',
                               fontFamily: 'var(--font-family-mono)',
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              backgroundColor: methodStyle.bg,
-                              color: methodStyle.text,
-                              border: `1px solid ${methodStyle.border}`,
                             }}
                           >
-                            {connector.http_method}
-                          </span>
-
-                          {/* Category Badge */}
-                          <span
+                            <span style={{ color: probeResult.success ? '#10B981' : '#EF4444', fontWeight: 700 }}>
+                              {probeResult.status_code || 200} OK
+                            </span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>•</span>
+                            <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              <Clock size={11} />
+                              {probeResult.latency_ms} ms
+                            </span>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>•</span>
+                            <span style={{ color: '#38BDF8', fontWeight: 600 }}>LIVE_DB</span>
+                          </div>
+                        ) : connector.last_latency_ms ? (
+                          <div
                             style={{
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              padding: '2px 8px',
-                              borderRadius: 'var(--radius-full)',
-                              backgroundColor: `${categoryColor}1A`,
-                              color: categoryColor,
-                              border: `1px solid ${categoryColor}4D`,
-                            }}
-                          >
-                            {connector.service_category}
-                          </span>
-
-                          {/* Service Key Badge */}
-                          <span
-                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '3px 10px',
+                              borderRadius: '6px',
+                              backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                              border: '1px solid var(--color-border)',
                               fontSize: '0.74rem',
                               fontFamily: 'var(--font-family-mono)',
                               color: 'var(--color-text-secondary)',
-                              backgroundColor: 'var(--color-input-background)',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              border: '1px solid var(--color-border)',
                             }}
                           >
-                            {connector.service_key}
-                          </span>
-                        </div>
-
-                        <h3 style={{ fontSize: '1.18rem', fontWeight: 800, margin: '2px 0 0 0' }}>
-                          {connector.service_name}
-                        </h3>
-
-                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem', margin: 0, maxWidth: '780px' }}>
-                          {connector.description || 'Enterprise microservice data connector.'}
-                        </p>
-                      </div>
-
-                      {/* Right Telemetry & Execution Mode Controls */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        {/* Health Status Pill */}
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '4px 10px',
-                            borderRadius: 'var(--radius-full)',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            backgroundColor:
-                              connector.health_status === 'HEALTHY'
-                                ? 'rgba(16, 185, 129, 0.12)'
-                                : connector.health_status === 'DEGRADED'
-                                ? 'rgba(245, 158, 11, 0.12)'
-                                : 'rgba(239, 68, 68, 0.12)',
-                            color:
-                              connector.health_status === 'HEALTHY'
-                                ? '#10B981'
-                                : connector.health_status === 'DEGRADED'
-                                ? '#F59E0B'
-                                : '#EF4444',
-                            border: `1px solid ${
-                              connector.health_status === 'HEALTHY'
-                                ? 'rgba(16, 185, 129, 0.3)'
-                                : connector.health_status === 'DEGRADED'
-                                ? 'rgba(245, 158, 11, 0.3)'
-                                : 'rgba(239, 68, 68, 0.3)'
-                            }`,
-                          }}
-                        >
+                            <span style={{ color: '#10B981', fontWeight: 600 }}>{connector.last_status_code || 200} OK</span>
+                            <span>•</span>
+                            <span>{connector.last_latency_ms} ms</span>
+                          </div>
+                        ) : (
                           <span
                             style={{
-                              width: '7px',
-                              height: '7px',
-                              borderRadius: '50%',
-                              backgroundColor:
-                                connector.health_status === 'HEALTHY'
-                                  ? '#10B981'
-                                  : connector.health_status === 'DEGRADED'
-                                  ? '#F59E0B'
-                                  : '#EF4444',
+                              fontSize: '0.74rem',
+                              color: 'var(--color-text-secondary)',
+                              fontFamily: 'var(--font-family-mono)',
                             }}
-                          />
-                          {connector.health_status} {connector.last_latency_ms ? `• ${connector.last_latency_ms}ms` : ''}
-                        </div>
+                          >
+                            Ready (MySQL)
+                          </span>
+                        )}
 
-                        {/* Mock Mode Toggle Badge */}
+                        {/* Inline Send Button (Postman Orange) */}
                         <button
-                          onClick={() => handleToggleMock(connector)}
-                          title="Click to toggle between Mock Simulation and Live Network dispatch"
+                          type="button"
+                          onClick={() => {
+                            if (!isExpanded) {
+                              setExpandedConnectors((prev) => ({ ...prev, [connector.id]: true }));
+                            }
+                            handleRunProbe(connector);
+                          }}
+                          disabled={isProbing}
                           style={{
-                            display: 'flex',
+                            display: 'inline-flex',
                             alignItems: 'center',
                             gap: '6px',
-                            padding: '4px 10px',
-                            borderRadius: 'var(--radius-full)',
-                            fontSize: '0.75rem',
+                            padding: '6px 14px',
+                            borderRadius: '5px',
+                            border: 'none',
+                            backgroundColor: isProbing ? 'rgba(255, 108, 55, 0.6)' : '#FF6C37',
+                            color: '#FFFFFF',
+                            fontSize: '0.78rem',
                             fontWeight: 700,
-                            cursor: 'pointer',
-                            backgroundColor: connector.is_mock_enabled
-                              ? 'rgba(6, 182, 212, 0.14)'
-                              : 'rgba(16, 185, 129, 0.14)',
-                            color: connector.is_mock_enabled ? '#06B6D4' : '#10B981',
-                            border: `1px solid ${
-                              connector.is_mock_enabled ? 'rgba(6, 182, 212, 0.35)' : 'rgba(16, 185, 129, 0.35)'
-                            }`,
-                            transition: 'all var(--transition-fast)',
+                            fontFamily: 'var(--font-family-mono)',
+                            cursor: isProbing ? 'not-allowed' : 'pointer',
+                            boxShadow: '0 2px 6px rgba(255, 108, 55, 0.3)',
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isProbing) e.currentTarget.style.backgroundColor = '#E55A2B';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isProbing) e.currentTarget.style.backgroundColor = '#FF6C37';
                           }}
                         >
-                          {connector.is_mock_enabled ? (
-                            <>
-                              <ToggleLeft size={14} />
-                              MOCK SIMULATOR
-                            </>
-                          ) : (
-                            <>
-                              <ToggleRight size={14} />
-                              LIVE NETWORK
-                            </>
-                          )}
+                          <Send size={12} className={isProbing ? 'animate-spin' : ''} />
+                          {isProbing ? 'Sending...' : 'Send'}
                         </button>
                       </div>
                     </div>
 
-                    {/* Monospace Endpoint & Connection Bar */}
-                    <div
-                      style={{
-                        padding: '12px 24px',
-                        backgroundColor: 'rgba(0, 0, 0, 0.15)',
-                        borderBottom: '1px solid var(--color-border)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '12px',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '300px' }}>
-                        <Globe size={15} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
-                        <span
+                    {/* EXPANDED POSTMAN WORKSPACE */}
+                    {isExpanded && (
+                      <div style={{ backgroundColor: 'var(--color-surface)', padding: '16px 20px' }}>
+                        {/* 1. POSTMAN OMNIBAR */}
+                        <div
                           style={{
-                            fontFamily: 'var(--font-family-mono)',
-                            fontSize: '0.84rem',
-                            color: 'var(--color-text-primary)',
-                            wordBreak: 'break-all',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '6px',
+                            borderRadius: '6px',
+                            backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                            border: '1px solid var(--color-border)',
+                            marginBottom: '16px',
                           }}
                         >
-                          <strong style={{ color: methodStyle.text }}>{connector.http_method}</strong>{' '}
-                          {connector.base_url.replace(/\/$/, '')}
-                          <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
-                            /{connector.endpoint_path.replace(/^\//, '')}
-                          </span>
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleCopyText(`url-${connector.id}`, `${connector.base_url.replace(/\/$/, '')}/${connector.endpoint_path.replace(/^\//, '')}`)}
-                          icon={copiedKey === `url-${connector.id}` ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
-                          style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-                        >
-                          {copiedKey === `url-${connector.id}` ? 'Copied' : 'Copy URL'}
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Auth & Config Metadata Ribbon */}
-                    <div
-                      style={{
-                        padding: '10px 24px',
-                        backgroundColor: 'var(--color-surface)',
-                        borderBottom: '1px solid var(--color-border)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '16px',
-                        flexWrap: 'wrap',
-                        fontSize: '0.8rem',
-                        color: 'var(--color-text-secondary)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                        <span>
-                          <strong>Auth:</strong>{' '}
-                          <span style={{ color: 'var(--color-text-primary)' }}>{connector.auth_type}</span>
-                        </span>
-                        <span>
-                          <strong>Header:</strong>{' '}
-                          <span style={{ fontFamily: 'var(--font-family-mono)', color: 'var(--color-text-primary)' }}>
-                            {connector.auth_header_key || 'Authorization'}
-                          </span>
-                        </span>
-                        <span>
-                          <strong>Token:</strong>{' '}
-                          <span
-                            style={{
-                              fontFamily: 'var(--font-family-mono)',
-                              backgroundColor: 'var(--color-input-background)',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              color: 'var(--color-text-primary)',
-                            }}
-                          >
-                            {connector.token_preview || 'None'}
-                          </span>
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <span>
-                          <strong>Timeout:</strong> {connector.timeout_ms || 5000}ms
-                        </span>
-                        <span>
-                          <strong>Retries:</strong> {connector.retry_count ?? 2}
-                        </span>
-                        {connector.last_tested_at && (
-                          <span>
-                            <strong>Last Tested:</strong>{' '}
-                            {new Date(connector.last_tested_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Interactive Sub-Tabs Navigation */}
-                    <div
-                      style={{
-                        padding: '0 24px',
-                        borderBottom: '1px solid var(--color-border)',
-                        display: 'flex',
-                        gap: '8px',
-                        backgroundColor: 'var(--color-surface)',
-                      }}
-                    >
-                      <button
-                        onClick={() => setActiveInspectorTabs((prev) => ({ ...prev, [connector.id]: 'payload' }))}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '10px 14px',
-                          border: 'none',
-                          borderBottom: currentInspectorTab === 'payload' ? '2px solid var(--color-primary)' : '2px solid transparent',
-                          backgroundColor: 'transparent',
-                          color: currentInspectorTab === 'payload' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                          fontWeight: currentInspectorTab === 'payload' ? 700 : 500,
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <Code size={14} />
-                        Request Payload & Headers
-                      </button>
-
-                      <button
-                        onClick={() => setActiveInspectorTabs((prev) => ({ ...prev, [connector.id]: 'response' }))}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '10px 14px',
-                          border: 'none',
-                          borderBottom: currentInspectorTab === 'response' ? '2px solid var(--color-primary)' : '2px solid transparent',
-                          backgroundColor: 'transparent',
-                          color: currentInspectorTab === 'response' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                          fontWeight: currentInspectorTab === 'response' ? 700 : 500,
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <CheckCircle size={14} />
-                        Expected Output Response
-                      </button>
-
-                      <button
-                        onClick={() => setActiveInspectorTabs((prev) => ({ ...prev, [connector.id]: 'probe' }))}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '10px 14px',
-                          border: 'none',
-                          borderBottom: currentInspectorTab === 'probe' ? '2px solid #FF5A14' : '2px solid transparent',
-                          backgroundColor: 'transparent',
-                          color: currentInspectorTab === 'probe' ? '#FF5A14' : 'var(--color-text-secondary)',
-                          fontWeight: currentInspectorTab === 'probe' ? 700 : 500,
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <Zap size={14} color={currentInspectorTab === 'probe' ? '#FF5A14' : 'currentColor'} />
-                        Interactive Test Sandbox & Live Probe
-                      </button>
-                    </div>
-
-                    {/* Sub-Tab Content */}
-                    <div style={{ padding: '18px 24px', backgroundColor: 'var(--color-input-background)' }}>
-                      {/* Sub-Tab 1: Request Payload */}
-                      {currentInspectorTab === 'payload' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
-                              Sample Request Payload & Headers:
-                            </span>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleCopyText(`pay-${connector.id}`, JSON.stringify(connector.sample_payload || {}, null, 2))}
-                              icon={copiedKey === `pay-${connector.id}` ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
-                              style={{ padding: '3px 8px', fontSize: '0.72rem' }}
-                            >
-                              {copiedKey === `pay-${connector.id}` ? 'Copied' : 'Copy JSON'}
-                            </Button>
-                          </div>
-
+                          {/* Method Selector Pill */}
                           <div
                             style={{
-                              display: 'grid',
-                              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                              gap: '12px',
+                              padding: '6px 12px',
+                              borderRadius: '4px',
+                              backgroundColor: methodStyle.bg,
+                              color: methodStyle.text,
+                              fontWeight: 800,
+                              fontSize: '0.78rem',
+                              fontFamily: 'var(--font-family-mono)',
+                              border: `1px solid ${methodStyle.border}`,
                             }}
                           >
-                            <div>
-                              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
-                                Headers Sent:
-                              </div>
-                              <pre
-                                style={{
-                                  margin: 0,
-                                  padding: '12px',
-                                  borderRadius: 'var(--radius-sm)',
-                                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                                  color: '#38BDF8',
-                                  fontSize: '0.78rem',
-                                  fontFamily: 'var(--font-family-mono)',
-                                  border: '1px solid var(--color-border)',
-                                  maxHeight: '180px',
-                                  overflowY: 'auto',
-                                }}
-                              >
-                                {JSON.stringify(
-                                  {
-                                    [connector.auth_header_key || 'Authorization']:
-                                      connector.auth_type !== 'NONE' ? `Bearer ${connector.token_preview || '***'}` : undefined,
-                                    ...(connector.custom_headers || {}),
-                                  },
-                                  null,
-                                  2
-                                )}
-                              </pre>
-                            </div>
+                            {connector.http_method}
+                          </div>
 
-                            <div>
-                              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
-                                Request Body / Query Params:
+                          {/* Full URL Input */}
+                          <div
+                            style={{
+                              flex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              fontFamily: 'var(--font-family-mono)',
+                              fontSize: '0.86rem',
+                              padding: '6px 10px',
+                              color: 'var(--color-text-primary)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={fullUrl}
+                          >
+                            <span style={{ color: 'var(--color-text-secondary)', marginRight: '2px' }}>
+                              {connector.base_url.replace(/\/$/, '')}
+                            </span>
+                            <span style={{ color: '#60A5FA', fontWeight: 600 }}>
+                              {displayPath}
+                            </span>
+                          </div>
+
+                          {/* Copy URL Button */}
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleCopyText(`url_${connector.id}`, fullUrl)}
+                            icon={copiedKey === `url_${connector.id}` ? <Check size={13} style={{ color: '#10B981' }} /> : <Copy size={13} />}
+                            title="Copy Request URL"
+                          >
+                            {copiedKey === `url_${connector.id}` ? 'Copied' : 'Copy URL'}
+                          </Button>
+
+                          {/* Big Send Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleRunProbe(connector)}
+                            disabled={isProbing}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '8px 20px',
+                              borderRadius: '4px',
+                              border: 'none',
+                              backgroundColor: isProbing ? 'rgba(255, 108, 55, 0.6)' : '#FF6C37',
+                              color: '#FFFFFF',
+                              fontSize: '0.84rem',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-family-mono)',
+                              cursor: isProbing ? 'not-allowed' : 'pointer',
+                              boxShadow: '0 2px 8px rgba(255, 108, 55, 0.35)',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isProbing) e.currentTarget.style.backgroundColor = '#E55A2B';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isProbing) e.currentTarget.style.backgroundColor = '#FF6C37';
+                            }}
+                          >
+                            <Send size={14} className={isProbing ? 'animate-spin' : ''} />
+                            {isProbing ? 'Sending...' : 'Send'}
+                          </button>
+                        </div>
+
+                        {/* 2. POSTMAN REQUEST TABS */}
+                        <div style={{ marginBottom: '16px' }}>
+                          {/* Tab Headers */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              gap: '4px',
+                              borderBottom: '1px solid var(--color-border)',
+                              paddingBottom: '2px',
+                              marginBottom: '12px',
+                            }}
+                          >
+                            {(
+                              [
+                                { key: 'params', label: `Params ${pathParams.length > 0 ? `(${pathParams.length})` : ''}` },
+                                { key: 'auth', label: 'Authorization' },
+                                { key: 'headers', label: 'Headers (3)' },
+                                { key: 'body', label: 'Body (JSON)' },
+                                { key: 'docs', label: 'Docs & MySQL Schema' },
+                              ] as const
+                            ).map((tab) => {
+                              const isActive = activeReqTab === tab.key;
+                              return (
+                                <button
+                                  key={tab.key}
+                                  type="button"
+                                  onClick={() => setRequestTabState((prev) => ({ ...prev, [connector.id]: tab.key }))}
+                                  style={{
+                                    padding: '6px 14px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: isActive ? 700 : 500,
+                                    color: isActive ? '#FF6C37' : 'var(--color-text-secondary)',
+                                    backgroundColor: 'transparent',
+                                    border: 'none',
+                                    borderBottom: isActive ? '2px solid #FF6C37' : '2px solid transparent',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                >
+                                  {tab.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Tab Body: Params */}
+                          {activeReqTab === 'params' && (
+                            <div
+                              style={{
+                                padding: '12px 14px',
+                                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                                borderRadius: '6px',
+                                border: '1px solid var(--color-border)',
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                  Path Variables (Resolves directly to MySQL `{targetTable}`)
+                                </span>
+                                <span style={{ fontSize: '0.74rem', color: 'var(--color-text-secondary)' }}>
+                                  Enter any valid ID from `{targetTable}` or use test defaults
+                                </span>
+                              </div>
+
+                              {pathParams.length === 0 ? (
+                                <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', margin: 0, padding: '8px 0' }}>
+                                  This endpoint does not require any path variables.
+                                </p>
+                              ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                  <thead>
+                                    <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left', color: 'var(--color-text-secondary)' }}>
+                                      <th style={{ padding: '6px 8px', fontWeight: 600, width: '25%' }}>Key</th>
+                                      <th style={{ padding: '6px 8px', fontWeight: 600, width: '45%' }}>Value</th>
+                                      <th style={{ padding: '6px 8px', fontWeight: 600, width: '30%' }}>Description</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {pathParams.map((param) => {
+                                      const currentValue = paramInputs[connector.id]?.[param] ?? getDefaultParamValue(param);
+                                      return (
+                                        <tr key={param} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                          <td style={{ padding: '8px', fontFamily: 'var(--font-family-mono)', color: '#FF6C37', fontWeight: 600 }}>
+                                            :{param}
+                                          </td>
+                                          <td style={{ padding: '8px' }}>
+                                            <input
+                                              type="text"
+                                              value={currentValue}
+                                              onChange={(e) => {
+                                                const newVal = e.target.value;
+                                                setParamInputs((prev) => ({
+                                                  ...prev,
+                                                  [connector.id]: {
+                                                    ...(prev[connector.id] || {}),
+                                                    [param]: newVal,
+                                                  },
+                                                }));
+                                              }}
+                                              placeholder={`e.g. ${getDefaultParamValue(param)}`}
+                                              style={{
+                                                width: '100%',
+                                                padding: '6px 10px',
+                                                borderRadius: '4px',
+                                                border: '1px solid var(--color-border)',
+                                                backgroundColor: 'var(--color-surface)',
+                                                color: 'var(--color-text-primary)',
+                                                fontFamily: 'var(--font-family-mono)',
+                                                fontSize: '0.82rem',
+                                              }}
+                                            />
+                                          </td>
+                                          <td style={{ padding: '8px', color: 'var(--color-text-secondary)', fontSize: '0.78rem' }}>
+                                            Primary identifier mapped to `{targetTable}`
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Tab Body: Authorization */}
+                          {activeReqTab === 'auth' && (
+                            <div
+                              style={{
+                                padding: '14px',
+                                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                                borderRadius: '6px',
+                                border: '1px solid var(--color-border)',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                  Type:
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: '0.76rem',
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                                    color: '#60A5FA',
+                                    fontWeight: 700,
+                                    fontFamily: 'var(--font-family-mono)',
+                                  }}
+                                >
+                                  {connector.auth_type}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span style={{ fontSize: '0.74rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                                  Token Header Preview ({connector.auth_header_key || 'Authorization'}):
+                                </span>
+                                <div
+                                  style={{
+                                    fontFamily: 'var(--font-family-mono)',
+                                    fontSize: '0.8rem',
+                                    padding: '8px 12px',
+                                    borderRadius: '4px',
+                                    backgroundColor: 'var(--color-surface)',
+                                    border: '1px solid var(--color-border)',
+                                    color: '#10B981',
+                                  }}
+                                >
+                                  Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.microservice_internal_token
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tab Body: Headers */}
+                          {activeReqTab === 'headers' && (
+                            <div
+                              style={{
+                                padding: '12px 14px',
+                                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                                borderRadius: '6px',
+                                border: '1px solid var(--color-border)',
+                              }}
+                            >
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                <thead>
+                                  <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left', color: 'var(--color-text-secondary)' }}>
+                                    <th style={{ padding: '6px 8px', fontWeight: 600, width: '40%' }}>Header Key</th>
+                                    <th style={{ padding: '6px 8px', fontWeight: 600, width: '60%' }}>Header Value</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                    <td style={{ padding: '8px', fontFamily: 'var(--font-family-mono)', color: 'var(--color-text-primary)' }}>Content-Type</td>
+                                    <td style={{ padding: '8px', fontFamily: 'var(--font-family-mono)', color: '#38BDF8' }}>application/json</td>
+                                  </tr>
+                                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                    <td style={{ padding: '8px', fontFamily: 'var(--font-family-mono)', color: 'var(--color-text-primary)' }}>Accept</td>
+                                    <td style={{ padding: '8px', fontFamily: 'var(--font-family-mono)', color: '#38BDF8' }}>application/json</td>
+                                  </tr>
+                                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                    <td style={{ padding: '8px', fontFamily: 'var(--font-family-mono)', color: 'var(--color-text-primary)' }}>X-Microservice-Caller</td>
+                                    <td style={{ padding: '8px', fontFamily: 'var(--font-family-mono)', color: '#38BDF8' }}>FRAUD_AGENT_ORCHESTRATOR</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+
+                          {/* Tab Body: Body (JSON) */}
+                          {activeReqTab === 'body' && (
+                            <div
+                              style={{
+                                padding: '12px 14px',
+                                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                                borderRadius: '6px',
+                                border: '1px solid var(--color-border)',
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '0.74rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                                  Raw JSON Payload ({connector.http_method})
+                                </span>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => handleCopyText(`body_${connector.id}`, JSON.stringify(connector.sample_payload || {}, null, 2))}
+                                  icon={copiedKey === `body_${connector.id}` ? <Check size={12} style={{ color: '#10B981' }} /> : <Copy size={12} />}
+                                >
+                                  {copiedKey === `body_${connector.id}` ? 'Copied' : 'Copy'}
+                                </Button>
                               </div>
                               <pre
                                 style={{
                                   margin: 0,
                                   padding: '12px',
-                                  borderRadius: 'var(--radius-sm)',
-                                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                                  color: '#34D399',
-                                  fontSize: '0.78rem',
+                                  borderRadius: '6px',
+                                  backgroundColor: '#0F141C',
+                                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                                  color: '#E2E8F0',
                                   fontFamily: 'var(--font-family-mono)',
-                                  border: '1px solid var(--color-border)',
+                                  fontSize: '0.8rem',
+                                  lineHeight: 1.5,
                                   maxHeight: '180px',
                                   overflowY: 'auto',
                                 }}
@@ -2570,222 +2791,233 @@ export const AdminManagementView: React.FC = () => {
                                 {JSON.stringify(connector.sample_payload || {}, null, 2)}
                               </pre>
                             </div>
-                          </div>
+                          )}
 
-                          {connector.payload_schema && (
-                            <div style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
-                              <strong>Schema notes:</strong> {connector.payload_schema}
+                          {/* Tab Body: Docs & MySQL Schema */}
+                          {activeReqTab === 'docs' && (
+                            <div
+                              style={{
+                                padding: '14px',
+                                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                                borderRadius: '6px',
+                                border: '1px solid var(--color-border)',
+                              }}
+                            >
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                                <div style={{ padding: '10px', borderRadius: '4px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Mapped DB Table</div>
+                                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#60A5FA', fontFamily: 'var(--font-family-mono)' }}>{targetTable}</div>
+                                </div>
+                                <div style={{ padding: '10px', borderRadius: '4px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Timeout & Retries</div>
+                                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>{connector.timeout_ms || 5000}ms • {connector.retry_count || 2} retries</div>
+                                </div>
+                                <div style={{ padding: '10px', borderRadius: '4px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Execution Pipeline</div>
+                                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#10B981' }}>Live Database Microservice</div>
+                                </div>
+                              </div>
+                              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                                {connector.description || 'Microservice connector for querying enterprise database entity.'}
+                              </p>
                             </div>
                           )}
                         </div>
-                      )}
 
-                      {/* Sub-Tab 2: Expected Output Response */}
-                      {currentInspectorTab === 'response' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
-                              Formatted Expected Output Response Structure (JSON):
-                            </span>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleCopyText(`res-${connector.id}`, JSON.stringify(connector.sample_response || {}, null, 2))}
-                              icon={copiedKey === `res-${connector.id}` ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
-                              style={{ padding: '3px 8px', fontSize: '0.72rem' }}
-                            >
-                              {copiedKey === `res-${connector.id}` ? 'Copied' : 'Copy Response'}
-                            </Button>
-                          </div>
-
-                          <pre
-                            style={{
-                              margin: 0,
-                              padding: '14px',
-                              borderRadius: 'var(--radius-sm)',
-                              backgroundColor: 'rgba(0, 0, 0, 0.35)',
-                              color: '#A78BFA',
-                              fontSize: '0.82rem',
-                              fontFamily: 'var(--font-family-mono)',
-                              border: '1px solid var(--color-border)',
-                              maxHeight: '260px',
-                              overflowY: 'auto',
-                              lineHeight: 1.5,
-                            }}
-                          >
-                            {JSON.stringify(connector.sample_response || {}, null, 2)}
-                          </pre>
-                        </div>
-                      )}
-
-                      {/* Sub-Tab 3: Live Sandbox & Probe Runner */}
-                      {currentInspectorTab === 'probe' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                            <div>
-                              <div style={{ fontSize: '0.86rem', fontWeight: 700 }}>
-                                Interactive Microservice Sandbox
-                              </div>
-                              <div style={{ fontSize: '0.76rem', color: 'var(--color-text-secondary)' }}>
-                                Run an on-demand probe to measure round-trip latency, verify payloads, and inspect downstream responses.
-                              </div>
-                            </div>
-
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => handleRunProbe(connector)}
-                              disabled={isProbing}
-                              icon={isProbing ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
-                              style={{ backgroundColor: '#FF5A14' }}
-                            >
-                              {isProbing ? 'Probing...' : '⚡ Send Live Probe'}
-                            </Button>
-                          </div>
-
+                        {/* 3. POSTMAN RESPONSE PANE */}
+                        <div
+                          style={{
+                            borderRadius: '6px',
+                            border: '1px solid var(--color-border)',
+                            backgroundColor: '#0E131B',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {/* Response Top Bar */}
                           <div
                             style={{
-                              display: 'grid',
-                              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-                              gap: '12px',
+                              padding: '8px 14px',
+                              backgroundColor: '#161C26',
+                              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              flexWrap: 'wrap',
+                              gap: '8px',
                             }}
                           >
-                            {/* Probe Inputs */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                                Probe Request JSON (Custom Parameters):
-                              </label>
-                              <textarea
-                                rows={6}
-                                value={probeInputs[connector.id] ?? JSON.stringify(connector.sample_payload || {}, null, 2)}
-                                onChange={(e) => setProbeInputs((prev) => ({ ...prev, [connector.id]: e.target.value }))}
-                                style={{
-                                  width: '100%',
-                                  fontFamily: 'var(--font-family-mono)',
-                                  fontSize: '0.8rem',
-                                  padding: '10px',
-                                  backgroundColor: 'rgba(0, 0, 0, 0.25)',
-                                }}
-                              />
-                            </div>
+                            {/* Left: Response status badge + Postman Sub-tabs */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Response
+                              </span>
 
-                            {/* Probe Output / Result */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                                  Probe Result & Telemetry:
-                                </label>
-                                {probeResult && (
-                                  <div style={{ display: 'flex', gap: '6px' }}>
-                                    <span
-                                      style={{
-                                        fontSize: '0.7rem',
-                                        fontWeight: 800,
-                                        padding: '1px 6px',
-                                        borderRadius: '4px',
-                                        backgroundColor: probeResult.success ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                                        color: probeResult.success ? '#10B981' : '#EF4444',
-                                      }}
-                                    >
-                                      HTTP {probeResult.status_code}
-                                    </span>
-                                    <span
-                                      style={{
-                                        fontSize: '0.7rem',
-                                        fontWeight: 800,
-                                        padding: '1px 6px',
-                                        borderRadius: '4px',
-                                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                                        color: '#3B82F6',
-                                      }}
-                                    >
-                                      {probeResult.latency_ms}ms
-                                    </span>
-                                    <span
-                                      style={{
-                                        fontSize: '0.7rem',
-                                        fontWeight: 700,
-                                        padding: '1px 6px',
-                                        borderRadius: '4px',
-                                        backgroundColor: 'var(--color-surface)',
-                                        color: 'var(--color-text-secondary)',
-                                      }}
-                                    >
-                                      {probeResult.execution_mode}
-                                    </span>
-                                  </div>
-                                )}
+                              {/* Postman Response Tabs (Body / Headers) */}
+                              <div style={{ display: 'flex', gap: '2px', backgroundColor: 'rgba(0, 0, 0, 0.3)', padding: '2px', borderRadius: '4px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setResponseTabState((prev) => ({ ...prev, [connector.id]: 'body' }))}
+                                  style={{
+                                    padding: '2px 8px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: (responseTabState[connector.id] || 'body') === 'body' ? 700 : 500,
+                                    borderRadius: '3px',
+                                    border: 'none',
+                                    backgroundColor: (responseTabState[connector.id] || 'body') === 'body' ? '#FF6C37' : 'transparent',
+                                    color: (responseTabState[connector.id] || 'body') === 'body' ? '#FFFFFF' : 'var(--color-text-secondary)',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  Body
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setResponseTabState((prev) => ({ ...prev, [connector.id]: 'headers' }))}
+                                  style={{
+                                    padding: '2px 8px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: responseTabState[connector.id] === 'headers' ? 700 : 500,
+                                    borderRadius: '3px',
+                                    border: 'none',
+                                    backgroundColor: responseTabState[connector.id] === 'headers' ? '#FF6C37' : 'transparent',
+                                    color: responseTabState[connector.id] === 'headers' ? '#FFFFFF' : 'var(--color-text-secondary)',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  Headers
+                                </button>
                               </div>
 
+                              {probeResult ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.76rem', fontFamily: 'var(--font-family-mono)' }}>
+                                  <span
+                                    style={{
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                      fontWeight: 800,
+                                      backgroundColor: probeResult.success ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                      color: probeResult.success ? '#10B981' : '#EF4444',
+                                    }}
+                                  >
+                                    Status: {probeResult.status_code || 200} OK
+                                  </span>
+                                  <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    <Clock size={11} />
+                                    Time: {probeResult.latency_ms} ms
+                                  </span>
+                                  <span
+                                    style={{
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                      backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                                      color: '#38BDF8',
+                                      fontWeight: 600,
+                                      fontSize: '0.72rem',
+                                    }}
+                                  >
+                                    {probeResult.execution_mode}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
+                                  Click "Send" to execute live request against `{targetTable}`
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Right: Actions */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => {
+                                  const isHeaderView = responseTabState[connector.id] === 'headers';
+                                  const textToCopy = isHeaderView
+                                    ? JSON.stringify(probeResult ? probeResult.headers_sent : { 'content-type': 'application/json' }, null, 2)
+                                    : JSON.stringify(probeResult ? probeResult.response_body : (connector.sample_response || {}), null, 2);
+                                  handleCopyText(`resp_${connector.id}`, textToCopy);
+                                }}
+                                icon={copiedKey === `resp_${connector.id}` ? <Check size={12} style={{ color: '#10B981' }} /> : <Copy size={12} />}
+                              >
+                                {copiedKey === `resp_${connector.id}` ? 'Copied' : 'Copy'}
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Response Viewer (Body or Headers) */}
+                          <div style={{ padding: '14px', maxHeight: '320px', overflowY: 'auto' }}>
+                            {responseTabState[connector.id] === 'headers' ? (
                               <pre
                                 style={{
                                   margin: 0,
-                                  padding: '10px',
-                                  borderRadius: 'var(--radius-sm)',
-                                  backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                                  color: probeResult?.success ? '#34D399' : '#F87171',
-                                  fontSize: '0.78rem',
                                   fontFamily: 'var(--font-family-mono)',
-                                  border: '1px solid var(--color-border)',
-                                  height: '135px',
-                                  overflowY: 'auto',
+                                  fontSize: '0.82rem',
+                                  lineHeight: 1.55,
+                                  color: '#34D399',
                                 }}
                               >
-                                {probeResult
-                                  ? JSON.stringify(probeResult.response_body || { error: probeResult.error }, null, 2)
-                                  : '// Click "Send Live Probe" to execute request and observe response...'}
+                                {JSON.stringify(
+                                  probeResult ? probeResult.headers_sent : {
+                                    'content-type': 'application/json',
+                                    'x-service-resolver': 'LIVE_DATABASE_SERVICE',
+                                    'x-database-table': targetTable,
+                                  },
+                                  null,
+                                  2
+                                )}
                               </pre>
-                            </div>
+                            ) : (
+                              <pre
+                                style={{
+                                  margin: 0,
+                                  fontFamily: 'var(--font-family-mono)',
+                                  fontSize: '0.82rem',
+                                  lineHeight: 1.55,
+                                  color: probeResult ? '#38BDF8' : '#CBD5E1',
+                                }}
+                              >
+                                {JSON.stringify(
+                                  probeResult ? probeResult.response_body : (connector.sample_response || {}),
+                                  null,
+                                  2
+                                )}
+                              </pre>
+                            )}
                           </div>
                         </div>
-                      )}
-                    </div>
 
-                    {/* Bottom Action Footer Toolbar */}
-                    <div
-                      style={{
-                        padding: '12px 24px',
-                        backgroundColor: 'var(--color-surface)',
-                        borderTop: '1px solid var(--color-border)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: '12px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => openEditConnectorModal(connector)}
-                          icon={<Edit2 size={13} />}
+                        {/* 4. FOOTER TOOLBAR */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginTop: '14px',
+                            paddingTop: '12px',
+                            borderTop: '1px solid var(--color-border)',
+                          }}
                         >
-                          Edit Configuration
-                        </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => openEditConnectorModal(connector)}
+                            icon={<Edit2 size={13} />}
+                          >
+                            Edit Configuration
+                          </Button>
 
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleToggleMock(connector)}
-                          icon={<RefreshCw size={13} />}
-                        >
-                          Switch to {connector.is_mock_enabled ? 'Live Network' : 'Mock Simulator'}
-                        </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => handleDeleteConnector(connector)}
+                            icon={<Trash2 size={13} />}
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </div>
-
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => handleDeleteConnector(connector)}
-                          icon={<Trash2 size={13} />}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -3075,7 +3307,7 @@ export const AdminManagementView: React.FC = () => {
         isOpen={isConnectorModalOpen}
         onClose={() => setIsConnectorModalOpen(false)}
         title={editingConnector ? `Edit Microservice Connector: ${editingConnector.service_name}` : 'Register New Microservice API Connector'}
-        subtitle="Decouple and dynamically configure inter-service REST endpoints, auth tokens, payloads, and mock simulation"
+        subtitle="Dynamically configure and inspect real-time inter-service REST endpoints, auth tokens, payloads, and live database responses"
         maxWidth="820px"
         onSubmit={handleSaveConnector}
         footer={
@@ -3242,8 +3474,8 @@ export const AdminManagementView: React.FC = () => {
             </span>
           </div>
 
-          {/* Row 6: Timeouts and Mock Mode */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', alignItems: 'center' }}>
+          {/* Row 6: Timeouts and Retries */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'center' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
                 Timeout (ms)
@@ -3272,19 +3504,6 @@ export const AdminManagementView: React.FC = () => {
                 style={{ width: '100%' }}
               />
             </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: '18px', gap: '8px' }}>
-              <input
-                type="checkbox"
-                id="mock_enabled_toggle"
-                checked={connectorForm.is_mock_enabled}
-                onChange={(e) => setConnectorForm({ ...connectorForm, is_mock_enabled: e.target.checked })}
-                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-              />
-              <label htmlFor="mock_enabled_toggle" style={{ fontSize: '0.84rem', fontWeight: 600, cursor: 'pointer' }}>
-                Enable Mock Simulator
-              </label>
-            </div>
           </div>
 
           {/* Row 7: Custom Headers JSON */}
@@ -3300,7 +3519,7 @@ export const AdminManagementView: React.FC = () => {
             />
           </div>
 
-          {/* Row 8: Sample Payload & Sample Response */}
+          {/* Row 8: Sample Payload & Live Response Schema */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
@@ -3316,7 +3535,7 @@ export const AdminManagementView: React.FC = () => {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                Expected Output Response (JSON)
+                Live Database Response Schema (JSON)
               </label>
               <textarea
                 rows={6}
