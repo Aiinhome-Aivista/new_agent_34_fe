@@ -323,29 +323,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
 
 
 
-  if (loading) {
-    return (
-      <div style={{ width: '100%', padding: '64px 36px' }}>
-        <GlobalLoader size="lg" />
-
-      </div>
-    );
-  }
-
-  if (error || !caseData) {
-    return (
-      <div style={{ width: '100%', padding: '32px 36px' }}>
-        <Button variant="secondary" size="sm" onClick={onBack} icon={<ArrowLeft size={14} />}>
-          Back to Queue
-        </Button>
-        <div style={{ marginTop: '24px', padding: '16px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#DC2626', borderRadius: 'var(--radius-sm)' }}>
-          {error || 'Case not found'}
-        </div>
-      </div>
-    );
-  }
-
-  const latestRec = caseData.recommendations && caseData.recommendations.length > 0
+  const latestRec = caseData?.recommendations && caseData.recommendations.length > 0
     ? caseData.recommendations[caseData.recommendations.length - 1]
     : null;
 
@@ -385,6 +363,28 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
       bypassed: Array.from(bypassed).filter((b) => !active.has(b)),
     };
   }, [structured, caseData?.evidence_items]);
+
+  if (loading) {
+    return (
+      <div style={{ width: '100%', padding: '64px 36px' }}>
+        <GlobalLoader size="lg" />
+
+      </div>
+    );
+  }
+
+  if (error || !caseData) {
+    return (
+      <div style={{ width: '100%', padding: '32px 36px' }}>
+        <Button variant="secondary" size="sm" onClick={onBack} icon={<ArrowLeft size={14} />}>
+          Back to Queue
+        </Button>
+        <div style={{ marginTop: '24px', padding: '16px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#DC2626', borderRadius: 'var(--radius-sm)' }}>
+          {error || 'Case not found'}
+        </div>
+      </div>
+    );
+  }
 
   // Lifecycle Stepper calculation based on case status
   // Statuses: RECEIVED -> COLLECTING_EVIDENCE -> UNDER_INVESTIGATION -> REQUIRES_REVIEW -> ACTION_AUTHORIZED / RESOLVED / ESCALATED / MONITORING / CLOSED
