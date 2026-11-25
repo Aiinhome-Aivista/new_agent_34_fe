@@ -356,6 +356,7 @@ export const CaseDetailView: React.FC<CaseDetailViewProps> = ({ caseId, onBack, 
       active.add('ORDER_SERVICE [m_orders]');
       active.add('PAYMENT_SERVICE [m_payments]');
       active.add('CHARGEBACK_SERVICE [m_chargebacks]');
+      active.add('REFUND_SERVICE [m_refunds]');
     }
 
     return {
